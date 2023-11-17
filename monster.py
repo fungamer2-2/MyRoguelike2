@@ -1,6 +1,7 @@
 from entity import Entity
 from utils import *
 from pathfinding import find_path
+from collections import deque
 import random
 
 class Monster(Entity):
@@ -11,19 +12,55 @@ class Monster(Entity):
 		self.target_pos = None
 		self.state = "IDLE"
 		self.patience = 0
+		self.INT = 10
+		self.path = deque()
 		
+	def calc_path_to(self, pos):
+		g = self.g
+		board = g.get_board()
+		def passable_func(p):
+			return p == pos or self.can_move_to(p)
+		
+		cost_func = lambda p: 1
+		path = find_path(board, self.pos, pos, passable_func, cost_func)
+		
+		self.path.clear()
+		if not path:
+			return
+		del path[0] #Remove start position		
+		self.path.extend(path)
+		
+	def path_towards(self, pos):
+		if self.pos == pos:
+			self.path.clear()
+			return
+		
+		if self.path:
+			if pos != self.path[-1] or not self.move_to(self.path.popleft()):
+				self.calc_path_to(pos)
+				if self.path:
+					self.move_to(self.path.popleft())
+		else:
+			self.calc_path_to(pos)
+			
+			if self.path:
+				self.move_to(self.path.popleft())	
+			
 	def base_pursue_duration(self):
 		#How long to continue tracking after losing sight of the player
-		return 3 * self.INT + 7
+		return 4 * self.INT + 6
 		
 	def set_target(self, pos):
-		self.target_pos.set_to(pos)
+		if self.has_target():
+			self.target_pos.set_to(pos)
+		else:
+			self.target_pos = pos.copy()
 		
 	def clear_target(self):
-		self.target = None
+		self.target_pos = None
 	
 	def has_target(self):
-		return self.target is None
+		return self.target_pos is not None
 		
 	def do_turn(self):
 		if not one_in(3):
@@ -39,44 +76,44 @@ class Monster(Entity):
 			if self.can_move_to(pos):
 				self.set_target(pos)
 				break
+				
+	def move_towards(self, target):
+		g = self.g
+		board = g.get_board()
+		
+		delta = target - self.pos		
+		dx = delta.x
+		dy = delta.y
+		if dx != 0:
+			dx //= abs(dx)
+		if dy != 0:
+			dy //= abs(dy)
+				
+		d = abs(delta)			
+		move_x = x_in_y(d.x, d.x + d.y) #Randomize, weighted by the x and y difference to the target
+				
+		pos = self.pos
+		if move_x:
+			#If moving in one direction would break line of sight, 
+			t = Point(pos.x + dx, pos.y)
+			maintains_los = board.has_line_of_sight(t, target)	
+			if not (maintains_los and self.move_dir(dx, 0)): #If one direction doesn't work, try the other
+				self.move_dir(0, dy)
+		else:
+			t = Point(pos.x, pos.y + dy)
+			maintains_los = board.has_line_of_sight(t, target)	
+			if not (maintains_los and self.move_dir(0, dy)):
+				self.move_dir(dx, 0)
 
 	def move_to_target(self):
 		if not self.has_target():
 			return
 			
-		
-		g = self.g
-		board = g.get_board()
-		
-		target = self.target_pos
-		
-		if self.sees(target):
-			delta = target - self.pos		
-			dx = delta.x
-			dy = delta.y
-			if dx != 0:
-				dx //= abs(dx)
-			if dy != 0:
-				dy //= abs(dy)
-				
-			d = abs(delta)			
-			move_x = x_in_y(d.x, d.x + d.y) #Randomize, weighted by the x and y difference to the target
-				
-			pos = self.pos
-			if move_x:
-				#If moving in one direction would break line of sight, 
-				t = Point(pos.x + dx, pos.y)
-				maintains_los = board.has_line_of_sight(t, target)	
-				if not (maintains_los and self.move_dir(dx, 0)): #If one direction doesn't work, try the other
-					self.move_dir(0, dy)
-			else:
-				t = Point(pos.x, pos.y + dy)
-				maintains_los = board.has_line_of_sight(t, target)	
-				if not (maintains_los and self.move_dir(0, dy)):
-					self.move_dir(dx, 0)
+		target = self.target_pos	
+		if self.has_clear_path(target):
+			self.move_towards(target)
 		else:
-			#TODO: Pathfinding
-			pass
+			self.path_towards(target)
 			
 	def move(self):
 		g = self.g
@@ -92,11 +129,11 @@ class Monster(Entity):
 			case "AWARE":
 				self.set_target(player.pos)
 				if not self.sees(player):
-					self.state = "IDLE"
+					self.state = "TRACKING"
 					patience = self.base_pursue_duration()	
 					self.patience = round(patience * random.triangular(0.5, 1.5))
 			case "TRACKING":
-				if self.target_pos == pos:
+				if self.target_pos == self.pos:
 					if x_in_y(3, 5):
 						self.set_target(player.pos)
 					else:
@@ -107,6 +144,6 @@ class Monster(Entity):
 				elif self.patience <= 0:
 					self.state = "IDLE"
 				
-			self.move_to_target()
+		self.move_to_target()
 		
 			

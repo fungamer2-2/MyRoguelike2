@@ -77,9 +77,33 @@ class Board:
 			old_pos = pos
 			
 		self.set_los_cache(pos1, pos2, True)
-		
 		return True
 		
+	def has_clear_path(self, pos1, pos2):
+		if not self.has_line_of_sight(pos1, pos2):
+			return False
+		old_pos = None
+		for pos in points_in_line(pos1, pos2):
+			if old_pos:
+				delta = old_pos - pos
+				ad = abs(delta)
+				if ad.x == 1 and ad.y == 1:
+					blocked = 0
+					blocked += not self.get_collision_cache(Point(pos.x + delta.x, pos.y))
+					blocked += not self.get_collision_cache(Point(pos.x, pos.y + delta.y))
+					if blocked >= 2:
+						return False
+			if pos == pos2:
+				break
+			passable = self.get_collision_cache(pos) is None
+			if not passable:
+				return False
+			old_pos = pos
+			
+		return True
+		
+			
+			
 	def set_collision_cache(self, pos, val):
 		self.mon_collision_cache[pos.y][pos.x] = val
 		

@@ -7,6 +7,7 @@ class Entity:
 		self.STR = 10
 		self.DEX = 10
 		self.CON = 10
+		self.INT = 10
 		self.HP = self.MAX_HP = 100
 		self.pos = Point()
 		
@@ -42,6 +43,10 @@ class Entity:
 			return True
 		board = self.g.get_board()
 		return board.has_line_of_sight(self.pos, other.pos)
+			
+	def has_clear_path(self, pos):
+		board = self.g.get_board()
+		return board.has_clear_path(self.pos, pos)
 			
 		
 	def display_color(self):
