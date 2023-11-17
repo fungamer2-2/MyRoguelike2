@@ -143,11 +143,15 @@ class Game:
 			self.draw_string(i, width + 6, padded)			
 	
 	def draw_monsters(self, offset_y):
+		player = self.get_player()
 		for m in self.monsters:
 			pos = m.pos
-			self.draw_symbol(pos.y + offset_y, pos.x, "m")
+			color = 0
+			if m.sees(player):
+				color = curses.A_REVERSE
+			self.draw_symbol(pos.y + offset_y, pos.x, "m", color)
 		
-		player = self.get_player()
+		
 		pos = player.pos
 		self.draw_symbol(pos.y + offset_y, pos.x, PLAYER_SYMBOL, curses.A_REVERSE)
 		
@@ -157,3 +161,27 @@ class Game:
 		self.draw_monsters(0)
 		self.draw_stats()
 		screen.refresh()
+		
+	def debug_los(self):
+		from utils import points_in_line
+		screen = self.screen
+		self.draw_walls(0)
+		player = self.get_player()
+		board = self.get_board()
+		
+		for m in self.monsters:
+			for pos in points_in_line(m.pos, player.pos):
+				if pos != m.pos and pos != player.pos:
+					color = 0
+					if not board.passable(pos):
+						color = curses.A_REVERSE
+					self.draw_symbol(pos.y + 0, pos.x, "*", color)
+				else:
+					if pos == m.pos:
+						color = 0
+						if m.sees(player):
+							color = curses.A_REVERSE
+						self.draw_symbol(pos.y + 0, pos.x, "m", color)
+		self.draw_monsters(0)
+		self.draw_stats()
+		

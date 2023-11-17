@@ -67,6 +67,9 @@ class Point:
 			return self
 		return NotImplemented
 		
+	def __abs__(self):
+		return Point(abs(self.x), abs(self.y))
+		
 	def as_tuple(self):
 		return (self.x, self.y)
 		
@@ -80,3 +83,33 @@ class Point:
 		if isinstance(other, Point):
 			return self.x == other.x and self.y == other.y
 
+def points_in_line(p1, p2):
+	x1 = p1.x
+	y1 = p1.y
+	x2 = p2.x
+	y2 = p2.y	
+	
+	dx = abs(x2 - x1)
+	sx = 1 if x1 < x2 else -1
+	dy = -abs(y2 - y1)
+	sy = 1 if y1 < y2 else -1
+	error = dx + dy
+	
+	pos = Point(x1, y1)
+	endpos = Point(x2, y2)
+	while True:
+		yield pos.copy()
+		if pos == endpos:
+			break
+		e2 = 2 * error
+		if e2 >= dy:
+			if pos.x == x2:
+				break
+			error += dy
+			pos.x += sx
+		if e2 <= dx:
+			if pos.y == y2:
+				break
+			error += dx
+			pos.y += sy
+		

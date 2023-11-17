@@ -20,6 +20,11 @@ while True:
 		player.move_dir(-1, 0)
 	elif char == "d":
 		player.move_dir(1, 0)
-		
+	elif char == "F":
+		g.debug_los()
+		while True:
+			char = g.get_char()
+			if char == "F":
+				break	
 	g.do_turn()
 	g.draw_board()				

@@ -1,5 +1,6 @@
-from utils import Point
+from utils import Point, points_in_line
 import random
+from collections import defaultdict
 
 class Tile:
 	
@@ -16,14 +17,69 @@ class Board:
 		self.height = height
 		self.grid = [[Tile() for _ in range(width)] for _ in range(height)]
 		self.mon_collision_cache = [[None for i in range(width)] for j in range(height)]	
+		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
+		
 		
 		for x in range(width):
 			self.set_wall(x, 0, True)
 			self.set_wall(x, height-1, True)
 		for y in range(1, height-1):
 			self.set_wall(0, y, True)
-			self.set_wall(width-1, y, True)
+			self.set_wall(width-1, y, True) 		
+		
+	def set_los_cache(self, pos1, pos2, has_los):
+		cache1 = self.los_cache[pos1.y][pos1.x]
+		cache1[pos2.copy()] = has_los
+		
+	def get_los_cache(self, pos1, pos2):
+		cache1 = self.los_cache[pos1.y][pos1.x]
+		if (val := cache1.get(pos2)):
+			return val
+		cache2 = self.los_cache[pos2.y][pos2.x]
+		if (val := cache2.get(pos1)):
+			return val
+		return None
+		
+	def clear_los_cache(self):
+		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
 			
+	def has_line_of_sight(self, pos1, pos2):
+		if pos1 == pos2:
+			return True
+		if pos1.x < pos2.x:
+			pos1, pos2 = pos2, pos1
+		elif pos1.x == pos2.x:
+			if pos1.y > pos2.y:
+				pos1, pos2 = pos2, pos1
+			
+		if (val := self.get_los_cache(pos1, pos2)):
+			return val
+		old_pos = None
+		for pos in points_in_line(pos1, pos2):
+			if old_pos:
+				delta = old_pos - pos
+				ad = abs(delta)
+				if ad.x == 1 and ad.y == 1:
+					blocked = 0
+					blocked += not self.passable(Point(pos.x + delta.x, pos.y))
+					blocked += not self.passable(Point(pos.x, pos.y + delta.y))
+					if blocked >= 2:
+						self.set_los_cache(pos1, pos, False)
+						return False
+			if pos == pos2:
+				break
+			passable = self.passable(pos)	
+			if not passable:	
+				self.set_los_cache(pos1, pos, False)
+				return False
+			
+			self.set_los_cache(pos1, pos, True)
+			old_pos = pos
+			
+		self.set_los_cache(pos1, pos2, True)
+		
+		return True
+		
 	def set_collision_cache(self, pos, val):
 		self.mon_collision_cache[pos.y][pos.x] = val
 		
@@ -33,6 +89,9 @@ class Board:
 	def erase_collision_cache(self, pos):
 		self.set_collision_cache(pos, None)
 			
+	def clear_collision_cache(self):
+		self.mon_collision_cache = [[None for i in range(width)] for j in range(height)]
+	
 	def random_pos(self):
 		x = random.randint(1, self.width - 1)
 		y = random.randint(1, self.height - 1)

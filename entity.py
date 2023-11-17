@@ -35,9 +35,14 @@ class Entity:
 		return self.HP > 0
 		
 	def sees(self, other):
+		if isinstance(other, Point):
+			return board.has_line_of_sight(self.pos, other)
+			
 		if self is other:
 			return True
-		return False
+		board = self.g.get_board()
+		return board.has_line_of_sight(self.pos, other.pos)
+			
 		
 	def display_color(self):
 		return 0
