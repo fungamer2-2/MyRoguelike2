@@ -1,4 +1,4 @@
-from utils import Point
+from utils import *
 
 class Entity:
 	g = None
@@ -8,8 +8,12 @@ class Entity:
 		self.DEX = 10
 		self.CON = 10
 		self.INT = 10
-		self.HP = self.MAX_HP = 100
+		self.HP = self.MAX_HP = 5
 		self.pos = Point()
+		
+	def add_msg(self, text):
+		g = self.g
+		g.add_message(text)
 		
 	def can_move_to(self, pos):
 		g = self.g
@@ -32,6 +36,12 @@ class Entity:
 	def set_hp(self, HP):
 		self.HP = clamp(HP, 0, self.MAX_HP)
 		
+	def get_hp(self):
+		return self.HP
+		
+	def take_damage(self, dam):
+		self.set_hp(self.get_hp() - dam)
+	
 	def is_alive(self):
 		return self.HP > 0
 		

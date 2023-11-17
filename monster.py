@@ -63,8 +63,7 @@ class Monster(Entity):
 		return self.target_pos is not None
 		
 	def do_turn(self):
-		if not one_in(3):
-			self.move()
+		self.move()
 			
 	def idle(self):
 		g = self.g

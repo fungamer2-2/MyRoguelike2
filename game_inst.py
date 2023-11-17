@@ -2,8 +2,9 @@ from board import Board
 from entity import Entity
 from monster import Monster
 from player import Player
+from messages import MessageLog
 from const import *
-import curses
+import curses, textwrap
 
 class Game:
 	
@@ -12,16 +13,37 @@ class Game:
 		self._player = Player()
 		self.screen = curses.initscr()
 		self.monsters = []
+		self.msg_log = MessageLog(MESSAGE_LOG_CAPACITY)
+		self.window_init = True
+		
+	def add_message(self, text):
+		self.msg_log.add_message(text)
 		
 	def init_game(self):
 		curses.noecho()
+		curses.curs_set(False)
 		Entity.g = self
 		board = self.get_board()
 		board.procgen_level()
 		self.place_player()
-		for _ in range(1):
+		for _ in range(5):
 			self.place_monster(Monster())		
 		self.draw_board()
+		
+	def deinit_window(self):
+		if not self.window_init:
+			return
+			
+		screen = self.screen
+		screen.nodelay(False)	
+		screen.clear()
+		curses.nocbreak()
+		curses.echo()
+		curses.curs_set(True)
+		curses.endwin()
+		import os
+		os.system("cls" if os.name == "nt" else "clear")
+		self.window_init = False
 		
 	def place_player(self):
 		board = self.get_board()
@@ -61,13 +83,7 @@ class Game:
 		
 	def get_player(self):
 		return self._player
-		
-	def deinit_window(self):
-		screen = self.screen
-		screen.nodelay(False)
-		curses.nocbreak()
-		curses.echo()
-		
+	
 	def do_turn(self):
 		board = self.get_board()
 		player = self.get_player()
@@ -147,20 +163,51 @@ class Game:
 		for m in self.monsters:
 			pos = m.pos
 			color = 0
-			if m.state in ["AWARE", "TRACKING"]:
+			if m.state == "IDLE":
 				color = curses.A_REVERSE
 			self.draw_symbol(pos.y + offset_y, pos.x, "m", color)
 		
 		
 		pos = player.pos
 		self.draw_symbol(pos.y + offset_y, pos.x, PLAYER_SYMBOL, curses.A_REVERSE)
+	
+	def draw_messages(self, offset_y):
+		screen = self.screen
+		
+		messages = self.msg_log.get_messages(8)
+		board = self.get_board()
+		y = board.height + offset_y
+		rows, cols = screen.getmaxyx()
+		groups = []
+		
+		total_lines = 0
+		for message in reversed(messages):
+			group = textwrap.wrap(message, width=cols)
+			groups.append(group)
+			total_lines += len(group)
+			if total_lines >= 8:
+				break
+		groups.reverse()
+		
+		displayed = []
+		for group in groups:
+			displayed.extend(group)
+		displayed = displayed[-8:] 
+			
+		for i in range(len(displayed)):
+			msg = displayed[i]
+			padded = msg.ljust(cols)
+			self.draw_string(y + i, 0, padded)			
 		
 	def draw_board(self):
 		screen = self.screen
-		self.draw_walls(0)
-		self.draw_monsters(0)
+		offset_y = 0
+		
+		self.draw_walls(offset_y)
+		self.draw_monsters(offset_y)
 		self.draw_stats()
-		screen.move(21, 0)
+		self.draw_messages(offset_y)
+		screen.move(20, 0)
 		screen.refresh()
 		
 	
