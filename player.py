@@ -33,9 +33,12 @@ class Player(Entity):
 			self.add_msg("You swing at empty space.")
 			return True
 		self.add_msg("You attack.")
-		mon.take_damage(9999)
+		damage = dice(1, 2)
+		mon.take_damage(damage)
 		if not mon.is_alive():
 			self.add_msg("The monster dies!")
+		else:
+			self.add_msg(f"It has {mon.HP}/{mon.MAX_HP}.")
 		return True
 		
 	def move_dir(self, dx, dy):

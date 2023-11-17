@@ -36,11 +36,8 @@ class Entity:
 	def set_hp(self, HP):
 		self.HP = clamp(HP, 0, self.MAX_HP)
 		
-	def get_hp(self):
-		return self.HP
-		
 	def take_damage(self, dam):
-		self.set_hp(self.get_hp() - dam)
+		self.set_hp(self.HP - dam)
 	
 	def is_alive(self):
 		return self.HP > 0
