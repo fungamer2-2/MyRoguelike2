@@ -4,6 +4,7 @@ from monster import Monster
 from player import Player
 from messages import MessageLog
 from const import *
+from utils import *	
 import curses, textwrap
 
 class Game:
@@ -149,6 +150,11 @@ class Game:
 		width = board.width
 		player = self.get_player()
 		
+		bar = "HP: " + display_bar(player.HP, player.MAX_HP, 20)			
+		p = f"({player.HP}/{player.MAX_HP})".ljust(12)
+		bar += " " + p
+		self.draw_string(0, 0, bar)
+		
 		strings = [
 			f"STR {player.STR}",
 			f"DEX {player.DEX}",
@@ -156,8 +162,12 @@ class Game:
 		]
 		for i in range(len(strings)):
 			padded = strings[i].ljust(6)
-			self.draw_string(i, width + 6, padded)			
-	
+			self.draw_string(i, width + 6, padded)
+			
+		
+		
+		
+		
 	def draw_monsters(self, offset_y):
 		player = self.get_player()
 		for m in self.monsters:
@@ -165,8 +175,7 @@ class Game:
 			color = 0
 			if m.state == "IDLE":
 				color = curses.A_REVERSE
-			self.draw_symbol(pos.y + offset_y, pos.x, "m", color)
-		
+			self.draw_symbol(pos.y + offset_y, pos.x, "m", color)	
 		
 		pos = player.pos
 		self.draw_symbol(pos.y + offset_y, pos.x, PLAYER_SYMBOL, curses.A_REVERSE)
@@ -201,13 +210,14 @@ class Game:
 		
 	def draw_board(self):
 		screen = self.screen
-		offset_y = 0
+		offset_y = 1
 		
 		self.draw_walls(offset_y)
 		self.draw_monsters(offset_y)
 		self.draw_stats()
 		self.draw_messages(offset_y)
-		screen.move(20, 0)
+		screen.move(20 + offset_y, 0)
 		screen.refresh()
-		
+	
+	
 	

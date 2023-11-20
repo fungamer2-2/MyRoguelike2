@@ -1,6 +1,7 @@
 from utils import *
+from abc import abstractmethod, ABC
 
-class Entity:
+class Entity(ABC):
 	g = None
 	
 	def __init__(self):
@@ -8,8 +9,12 @@ class Entity:
 		self.DEX = 10
 		self.CON = 10
 		self.INT = 10
-		self.HP = self.MAX_HP = 5
+		self.HP = self.MAX_HP = 10
 		self.pos = Point()
+	
+	@abstractmethod
+	def get_name(self, capitalize=False):
+		return "Unknown Entity"
 		
 	def add_msg(self, text):
 		g = self.g
@@ -38,6 +43,9 @@ class Entity:
 		
 	def take_damage(self, dam):
 		self.set_hp(self.HP - dam)
+		
+	def heal(self, dam):
+		self.set_hp(self.HP + dam)
 	
 	def is_alive(self):
 		return self.HP > 0

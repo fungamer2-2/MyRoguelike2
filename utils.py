@@ -26,6 +26,18 @@ def gen_stat():
 	vals = [random.randint(1, 6) for _ in range(4)]
 	return sum(vals) - min(vals)	
 
+def display_bar(val, max, width):
+	val = clamp(val, 0, max)
+	part = width * val / max
+	num = int(part)
+	string = []
+	
+	bars = "|"*num
+	rem = part - int(part)
+	if 0 < val < max and (num <= 0 or rem >= 0.5):
+		bars += "."
+	bars += " "*(width-len(bars))
+	return f"[{bars}]"
 	
 class Point:
 	
@@ -82,7 +94,12 @@ class Point:
 	def __eq__(self, other):
 		if isinstance(other, Point):
 			return self.x == other.x and self.y == other.y
-
+		return False
+		
+	def distance(self, other):
+		delta = other - self
+		return abs(delta.x) + abs(delta.y)	
+	
 def points_in_line(p1, p2):
 	x1 = p1.x
 	y1 = p1.y
@@ -112,4 +129,3 @@ def points_in_line(p1, p2):
 				break
 			error += dx
 			pos.y += sy
-		

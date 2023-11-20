@@ -1,4 +1,5 @@
 from entity import Entity
+from player import Player
 from utils import *
 from pathfinding import find_path
 from collections import deque
@@ -14,6 +15,10 @@ class Monster(Entity):
 		self.patience = 0
 		self.INT = 10
 		self.path = deque()
+	
+	def get_name(self, capitalize=False):
+		the = "The" if capitalize else "the"
+		return the + " monster"
 		
 	def calc_path_to(self, pos):
 		g = self.g
@@ -35,7 +40,7 @@ class Monster(Entity):
 			self.path.clear()
 			return
 		
-		if self.path:
+		if self.path and not one_in(5):
 			if pos != self.path[-1] or not self.move_to(self.path.popleft()):
 				self.calc_path_to(pos)
 				if self.path:
@@ -104,16 +109,27 @@ class Monster(Entity):
 			if not (maintains_los and self.move_dir(0, dy)):
 				self.move_dir(dx, 0)
 
-	def move_to_target(self):
-		if not self.has_target():
-			return
-			
+	def move_to_target(self):		
 		target = self.target_pos	
 		if self.has_clear_path(target):
 			self.move_towards(target)
 		else:
 			self.path_towards(target)
 			
+	def attack_pos(self, pos):
+		g = self.g
+		if not (c := g.monster_at(pos)):
+			self.add_msg("The monster attacks empty space.")
+			return
+		
+		assert isinstance(c, Player) #TODO: Remove when it's possible for monsters to attack other monsters
+		
+		if one_in(3):
+			self.add_msg(f"The monster's attack misses {c.get_name()}.")
+		else:
+			self.add_msg(f"The monster attacks {c.get_name()}.")
+			c.take_damage(1)
+		
 	def move(self):
 		g = self.g
 		board = g.get_board()
@@ -127,10 +143,15 @@ class Monster(Entity):
 					self.set_target(player.pos)
 			case "AWARE":
 				self.set_target(player.pos)
-				if not self.sees(player):
+				if self.sees(player):
+					if self.pos.distance(player.pos) <= 1:
+						self.set_target(self.pos)
+						self.attack_pos(player.pos)
+				else:
 					self.state = "TRACKING"
 					patience = self.base_pursue_duration()	
-					self.patience = round(patience * random.triangular(0.5, 1.5))
+					self.patience = round(patience * random.triangular(0.8, 1.2))
+				
 			case "TRACKING":
 				if self.target_pos == self.pos:
 					if x_in_y(3, 5):

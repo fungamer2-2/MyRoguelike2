@@ -11,6 +11,10 @@ class Player(Entity):
 		self.INT = gen_stat()
 		self.MAX_HP = 10
 		self.level = 1
+		self.regen_tick = 0
+		
+	def get_name(self, capitalize=False):
+		return "You" if capitalize else "you"
 		
 	def calc_to_hit_bonus(self):
 		return (self.level - 1) / 3
@@ -33,7 +37,7 @@ class Player(Entity):
 			self.add_msg("You swing at empty space.")
 			return True
 		self.add_msg("You attack.")
-		damage = dice(1, 2)
+		damage = dice(1, 3)
 		mon.take_damage(damage)
 		if not mon.is_alive():
 			self.add_msg("The monster dies!")
@@ -50,4 +54,9 @@ class Player(Entity):
 		if g.monster_at(target):
 			return self.attack_pos(target)
 		return False
-		
+	
+	def do_turn(self):
+		self.regen_tick += self.regen_rate()
+		while self.regen_tick >= 1:
+			self.regen_tick -= 1
+			self.heal(1)	
