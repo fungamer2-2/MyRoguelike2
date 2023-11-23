@@ -4,29 +4,50 @@ from utils import *
 from pathfinding import find_path
 from collections import deque
 import random
+from json_obj import *
 
 class Monster(Entity):
 	
 	def __init__(self):
 		super().__init__()
+		self.id = "unknown"
 		self.symbol = "m"
+		self.name = "monster"
 		self.target_pos = None
 		self.state = "IDLE"
 		self.patience = 0
-		self.INT = 10
 		self.path = deque()
+		self.pack = True
+		self.to_hit = 0
+	
+	@classmethod
+	def from_type(cls, typ):
+		m = cls()
+		m.id = typ.id
+		m.name = typ.name
+		m.STR = typ.STR
+		m.DEX = typ.DEX
+		m.CON = typ.CON
+		m.INT = typ.INT
+		m.WIS = typ.WIS
+		m.HP = m.MAX_HP = typ.HP
+		m.pack = typ.pack_travel
+		m.to_hit = typ.to_hit
+		return m
 	
 	def get_name(self, capitalize=False):
 		the = "The" if capitalize else "the"
-		return the + " monster"
+		return the + " " + self.name
 		
 	def calc_path_to(self, pos):
 		g = self.g
 		board = g.get_board()
 		def passable_func(p):
-			return p == pos or self.can_move_to(p)
-		
+			return p == pos or board.passable(p)
 		cost_func = lambda p: 1
+		def cost_func(p):
+			return 1 + 2*(g.monster_at(p) is not None)
+		
 		path = find_path(board, self.pos, pos, passable_func, cost_func)
 		
 		self.path.clear()
@@ -38,18 +59,20 @@ class Monster(Entity):
 	def path_towards(self, pos):
 		if self.pos == pos:
 			self.path.clear()
-			return
+			return True
 		
-		if self.path and not one_in(5):
+		if self.path:
 			if pos != self.path[-1] or not self.move_to(self.path.popleft()):
 				self.calc_path_to(pos)
 				if self.path:
-					self.move_to(self.path.popleft())
+					return self.move_to(self.path.popleft())
+				return False
+			return True
 		else:
-			self.calc_path_to(pos)
-			
+			self.calc_path_to(pos)	
 			if self.path:
-				self.move_to(self.path.popleft())	
+				return self.move_to(self.path.popleft())	
+			return False
 			
 	def base_pursue_duration(self):
 		#How long to continue tracking after losing sight of the player
@@ -69,10 +92,11 @@ class Monster(Entity):
 		
 	def do_turn(self):
 		self.move()
-			
-	def idle(self):
+		
+	def set_rand_target(self):
 		g = self.g
 		board = g.get_board()
+		
 		adj = board.get_adjacent_tiles(self.pos)	
 		random.shuffle(adj)
 		
@@ -81,55 +105,135 @@ class Monster(Entity):
 				self.set_target(pos)
 				break
 				
-	def move_towards(self, target):
+	def target_entity(self, ent):
+		self.set_target(ent.pos)
+			
+	def idle(self):
 		g = self.g
 		board = g.get_board()
 		
-		delta = target - self.pos		
+		if self.pack and not one_in(3) and self.set_pack_target_pos():
+			return
+			
+		self.set_rand_target()
+				
+	def move_towards(self, target):
+		g = self.g
+		board = g.get_board()
+		pos = self.pos
+		
+		delta = target - pos		
 		dx = delta.x
 		dy = delta.y
 		if dx != 0:
 			dx //= abs(dx)
 		if dy != 0:
 			dy //= abs(dy)
+			
+		has_los = self.sees(target)
 				
 		d = abs(delta)			
 		move_x = x_in_y(d.x, d.x + d.y) #Randomize, weighted by the x and y difference to the target
-				
-		pos = self.pos
 		if move_x:
-			#If moving in one direction would break line of sight, 
 			t = Point(pos.x + dx, pos.y)
-			maintains_los = board.has_line_of_sight(t, target)	
-			if not (maintains_los and self.move_dir(dx, 0)): #If one direction doesn't work, try the other
-				self.move_dir(0, dy)
 		else:
-			t = Point(pos.x, pos.y + dy)
-			maintains_los = board.has_line_of_sight(t, target)	
-			if not (maintains_los and self.move_dir(0, dy)):
-				self.move_dir(dx, 0)
+			t = Point(pos.x, pos.y + dy)	
+		
+		maintains_los = board.has_line_of_sight(t, target)				
+		
+		switched = False
+		if has_los and not maintains_los:
+			move_x = not move_x	
+			switched = True
+		
+		if move_x:
+			#If one direction doesn't work, try the other
+			#Only try the other direction if we can move without breaking LOS
+			return self.move_dir(dx, 0) or (not switched and self.move_dir(0, dy))
+		else:
+			return self.move_dir(0, dy) or (not switched and self.move_dir(dx, 0))
 
-	def move_to_target(self):		
-		target = self.target_pos	
-		if self.has_clear_path(target):
-			self.move_towards(target)
-		else:
-			self.path_towards(target)
+	def move_to_target(self):
+		if not self.has_target():
+			return
+		
+		g = self.g
+		board = g.get_board()
+		
+		can_move = False
+		for pos in board.get_adjacent_tiles(self.pos):
+			if not board.passable(pos):
+				continue
+			if not g.entity_at(pos):
+				can_move = True
+				break
+		if not can_move:
+			return
+		
+		target = self.target_pos
+		
+		max_dist = 2 * (self.INT + 1)
+		can_path = self.distance(target) <= max_dist and self.path_towards(target)
+		
+		if not (can_path or self.move_towards(target)):
+			self.set_rand_target()	
+			
+	def set_pack_target_pos(self):
+		g = self.g	
+		x = 0
+		y = 0
+		num = 0
+		
+		for mon in g.monsters_in_radius(self.pos, 4):	
+			if not self.sees(mon):
+				continue
+			if mon.state == "IDLE":
+				continue	
+		
+			p = mon.pos
+			x += p.x
+			y += p.y
+			num += 1
+		
+		if num > 0:
+			x /= num
+			y /= num
+			target = Point(round(x), round(y))
+			if self.target_pos != target:
+				self.set_target(target)
+				return True
+		return False	
 			
 	def attack_pos(self, pos):
 		g = self.g
-		if not (c := g.monster_at(pos)):
-			self.add_msg("The monster attacks empty space.")
+		board = g.get_board()
+		if not (c := g.entity_at(pos)):
+			self.add_msg("{self.get_name(True)} attacks empty space.")
 			return
 		
 		assert isinstance(c, Player) #TODO: Remove when it's possible for monsters to attack other monsters
 		
-		if one_in(3):
-			self.add_msg(f"The monster's attack misses {c.get_name()}.")
-		else:
-			self.add_msg(f"The monster attacks {c.get_name()}.")
-			c.take_damage(1)
+		mod = self.to_hit
 		
+		if self.pack:
+			allies = 0
+			for p in board.points_in_radius(self.pos, 1):
+				mon = g.monster_at(p)
+				if mon and mon.id == self.id:
+					allies += 1
+			if allies > 0:
+				bonus = 2.5*allies
+				self.add_msg(f"+{bonus} due to pack tactics")
+				mod += bonus
+					
+		roll = gauss_roll(mod)
+		self.add_msg(f"{roll} vs {c.calc_evasion()}")
+		if roll >= c.calc_evasion():
+			self.add_msg(f"{self.get_name(True)} attacks {c.get_name()}.")
+			c.take_damage(1)
+		else:
+			self.add_msg(f"{self.get_name(True)}'s attack misses {c.get_name()}.")
+			
 	def move(self):
 		g = self.g
 		board = g.get_board()
@@ -140,25 +244,35 @@ class Monster(Entity):
 				self.idle()
 				if self.sees(player):
 					self.state = "AWARE"
-					self.set_target(player.pos)
-			case "AWARE":
-				self.set_target(player.pos)
+					self.target_entity(player)
+				
+			case "AWARE":	
 				if self.sees(player):
-					if self.pos.distance(player.pos) <= 1:
+					grouped = False
+					if self.pack and self.distance(player) > 2:
+						if x_in_y(2, 5):	
+							grouped = self.set_pack_target_pos()
+					if not grouped:
+						self.target_entity(player)
+						
+					if self.distance(player) <= 1:
 						self.set_target(self.pos)
 						self.attack_pos(player.pos)
 				else:
 					self.state = "TRACKING"
+					self.target_entity(player)
 					patience = self.base_pursue_duration()	
 					self.patience = round(patience * random.triangular(0.8, 1.2))
 				
 			case "TRACKING":
+				loss = 1
 				if self.target_pos == self.pos:
 					if x_in_y(3, 5):
 						self.set_target(player.pos)
-					else:
-						self.patience -= 1
-				self.patience -= 1
+					elif self.pack and self.set_pack_target_pos():
+						loss = 0
+					
+				self.patience -= loss
 				if self.sees(player):
 					self.state = "AWARE"
 				elif self.patience <= 0:

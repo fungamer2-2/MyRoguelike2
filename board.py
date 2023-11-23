@@ -6,6 +6,7 @@ class Tile:
 	
 	def __init__(self):
 		self.wall = False
+		self.revealed = False
 		
 	def is_passable(self):
 		return not self.wall	
@@ -42,7 +43,16 @@ class Board:
 		
 	def clear_los_cache(self):
 		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
-			
+	
+	def diagonal_blocked(self, p1, p2):
+		delta = p1 - p2
+		ad = abs(delta)
+		blocked = 0
+		if ad.x == 1 and ad.y == 1:
+			blocked += not self.passable(Point(pos.x + delta.x, pos.y))
+			blocked += not self.passable(Point(pos.x, pos.y + delta.y))	
+		return blocked >= 2
+		
 	def has_line_of_sight(self, pos1, pos2):
 		if pos1 == pos2:
 			return True
@@ -66,8 +76,6 @@ class Board:
 					if blocked >= 2:
 						self.set_los_cache(pos1, pos, False)
 						return False
-			if pos == pos2:
-				break
 			passable = self.passable(pos)	
 			if not passable:	
 				self.set_los_cache(pos1, pos, False)
@@ -84,6 +92,8 @@ class Board:
 			return False
 		old_pos = None
 		for pos in points_in_line(pos1, pos2):
+			if pos == pos1:
+				continue
 			if old_pos:
 				delta = old_pos - pos
 				ad = abs(delta)
@@ -102,8 +112,6 @@ class Board:
 			
 		return True
 		
-			
-			
 	def set_collision_cache(self, pos, val):
 		self.mon_collision_cache[pos.y][pos.x] = val
 		
@@ -114,6 +122,8 @@ class Board:
 		self.set_collision_cache(pos, None)
 			
 	def clear_collision_cache(self):
+		width = self.width
+		height = self.height
 		self.mon_collision_cache = [[None for i in range(width)] for j in range(height)]
 	
 	def random_pos(self):
@@ -132,6 +142,10 @@ class Board:
 			return False
 		return not self.get_tile(pos).wall
 		
+	def reveal_tile_at(self, pos):
+		tile = self.get_tile(pos)
+		tile.revealed = True
+		
 	def in_bounds(self, pos):
 		if pos.x < 0 or pos.x >= self.width:
 			return False
@@ -147,7 +161,7 @@ class Board:
 		y2 = min(y2, self.height - 1)
 		
 		while True:
-			yield point
+			yield point.copy()
 			point.x += 1
 			if point.x > x2:
 				point.x = x1
@@ -155,6 +169,13 @@ class Board:
 				if point.y > y2:
 					break
 					
+	def points_in_radius(self, center, radius):
+		for pos in self.iter_square(center.x-radius, center.y-radius, center.x+radius, center.y+radius):
+			if pos == center:
+				continue
+			if pos.distance(center) <= radius:
+				yield pos
+			
 	def get_adjacent_tiles(self, pos):
 		adj = []
 		if self.passable(c := Point(pos.x - 1, pos.y)):
@@ -170,4 +191,72 @@ class Board:
 	def procgen_level(self):
 		from procgen import procgen
 		procgen(self)
-		
+	
+	def get_fov(self, pos):
+		fov = set()
+		width = self.width
+		height = self.height
+		for x in range(width):
+			for p in points_in_line(pos, Point(x, 0)):		
+				if not self.has_line_of_sight(pos, p):
+					if not self.passable(p):
+						fov.add(p)
+					break
+				fov.add(p)	
+			for p in points_in_line(pos, Point(x, height-1)):
+				if not self.has_line_of_sight(pos, p):
+					if not self.passable(p):
+						fov.add(p)
+					break
+				fov.add(p)
+		for y in range(1, height-1):
+			for p in points_in_line(pos, Point(0, y)):
+				if not self.has_line_of_sight(pos, p):
+					if not self.passable(p):
+						fov.add(p)
+					break
+				fov.add(p)
+			for p in points_in_line(pos, Point(width-1, y)):
+				if not self.has_line_of_sight(pos, p):
+					if not self.passable(p):
+						fov.add(p)
+					break
+				fov.add(p)
+		seen = set()
+		for cell in fov.copy():
+			if not self.passable(cell):
+				continue
+			delta = cell - pos
+			neighbors = [
+				Point(cell.x-1, cell.y),
+				Point(cell.x+1, cell.y),
+				Point(cell.x, cell.y+1),
+				Point(cell.x, cell.y-1)
+			]
+			for p in neighbors:
+				if p in seen or p in fov:
+					continue
+				seen.add(p)
+				if not self.in_bounds(p):
+					continue
+					
+				if not self.passable(p):
+					can_see = False
+					
+					d = p - cell
+					d_abs = abs(d)
+					if delta.x <= 0 and delta.y <= 0:
+						can_see = d.x <= 0 or d.y <= 0
+					if delta.x >= 0 and delta.y <= 0:
+						can_see = d.x >= 0 or d.y <= 0
+					if delta.x <= 0 and delta.y >= 0:
+						can_see = d.x <= 0 or d.y >= 0
+					if delta.x >= 0 and delta.y >= 0:
+						can_see = d.x >= 0 or d.y >= 0
+					
+					if can_see:
+						fov.add(p)
+			
+				
+				
+		return fov

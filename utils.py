@@ -8,7 +8,7 @@ def gauss_cdf(mean, stdev, x):
 	
 def gauss_roll_prob(mod, DC):
 	cdf = gauss_cdf(10 + mod, 5, DC)
-	return 1 - cdf
+	return (1 - cdf) * 100
 	
 def clamp(val, lo, hi):
 	return max(lo, min(val, hi))
@@ -18,6 +18,17 @@ def one_in(x):
 	
 def x_in_y(x, y):
 	return random.uniform(0.0, y) < x
+	
+def div_rand(x, y):
+	"Computes x/y then randomly rounds the result up or down depending on the remainder"
+	sign = 1
+	if (x > 0) ^ (y > 0):
+		sign = -1
+	x = abs(x)
+	y = abs(y)
+	mod = x % y
+	return sign * (x//y + (random.randint(1, y) <= mod))
+ 
 	
 def dice(num, sides):
 	return sum(random.randint(1, sides) for _ in range(num))
@@ -78,6 +89,9 @@ class Point:
 			self.y -= other.y
 			return self
 		return NotImplemented
+		
+	def __neg__(self):
+		return Point(-self.x, -self.y)
 		
 	def __abs__(self):
 		return Point(abs(self.x), abs(self.y))

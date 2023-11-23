@@ -1,3 +1,4 @@
+from json_obj import load_monster_types
 from board import Board
 from entity import Entity
 from monster import Monster
@@ -16,6 +17,18 @@ class Game:
 		self.monsters = []
 		self.msg_log = MessageLog(MESSAGE_LOG_CAPACITY)
 		self.window_init = True
+		self.mon_types = {}
+		
+	def check_mon_type(self, typ):
+		if typ not in self.mon_types:
+			valid_types = sorted(self.mon_types.keys())
+			error = ValueError(f"invalid monster type {typ!r}")
+			error.add_note(f"Valid monster types are: {', '.join(valid_types)}")
+			raise error
+		
+	def get_mon_type(self, typ):
+		self.check_mon_type(typ)
+		return self.mon_types[typ]
 		
 	def add_message(self, text):
 		self.msg_log.add_message(text)
@@ -24,11 +37,13 @@ class Game:
 		curses.noecho()
 		curses.curs_set(False)
 		Entity.g = self
+		self.load_monsters()
+		
 		board = self.get_board()
 		board.procgen_level()
 		self.place_player()
-		for _ in range(5):
-			self.place_monster(Monster())		
+		for _ in range(12):
+			self.place_monster("jackal")		
 		self.draw_board()
 		
 	def deinit_window(self):
@@ -56,7 +71,9 @@ class Game:
 		player.move_to(pos)
 		board.set_collision_cache(pos, player)
 		
-	def place_monster_at(self, m, pos):
+	def place_monster_at(self, typ_id, pos):
+		typ = self.get_mon_type(typ_id)
+		m = Monster.from_type(typ)
 		board = self.get_board()
 		if m.move_to(pos):
 			board.set_collision_cache(pos, m)
@@ -64,20 +81,36 @@ class Game:
 			return True
 		return False
 		
-	def place_monster(self, m):
+	def place_monster(self, typ):
+		self.check_mon_type(typ)
 		board = self.get_board()
-		for tries in range(100):
+		for tries in range(150):
 			pos = board.random_pos()
 			if board.passable(pos) and not self.monster_at(pos):
 				break
 		else:
-			return False
+			return None
 		
-		return self.place_monster_at(m, pos)
+		return self.place_monster_at(typ, pos)
 		
-	def monster_at(self, pos):
+	def load_monsters(self):
+		self.mon_types = load_monster_types()
+		
+	def entity_at(self, pos):
 		board = self.get_board()
 		return board.get_collision_cache(pos)
+		
+	def monster_at(self, pos):
+		entity = self.entity_at(pos)
+		if isinstance(entity, Player):
+			return None
+		return entity
+		
+	def monsters_in_radius(self, pos, radius):
+		board = self.get_board()
+		for pos in board.points_in_radius(pos, radius):
+			if (mon := self.monster_at(pos)) and not isinstance(mon, Player):
+				yield mon
 			
 	def get_board(self):
 		return self._board
@@ -87,22 +120,35 @@ class Game:
 	
 	def do_turn(self):
 		board = self.get_board()
+		self.refresh_mon_pos_cache()
 		player = self.get_player()
 		player.do_turn()
+		need_rebuild = False
 		for m in self.monsters:
 			if m.is_alive():
 				m.do_turn()
+				expected = m.pos
 			else:
 				board.erase_collision_cache(m.pos)
+				expected = None
 			
 		self.remove_dead()
+		
+	def refresh_mon_pos_cache(self):
+		board = self.get_board()
+		player = self.get_player()
+		board.clear_collision_cache()
+		
+		board.set_collision_cache(player.pos, player)	
+		for m in self.monsters:
+			board.set_collision_cache(m.pos, m)
 		
 	def remove_dead(self):
 		board = self.get_board()
 		for m in reversed(self.monsters):
 			if not m.is_alive():
 				self.monsters.remove(m)
-				
+			
 	def get_char(self, wait=True):
 		screen = self.screen
 		screen.nodelay(not wait)
@@ -114,14 +160,14 @@ class Game:
 			return None
 		
 		return chr(code)
-		
+	
 	def draw_symbol(self, row, col, symbol, color=0):
 		screen = self.screen
 		rows, cols = screen.getmaxyx()
 		
 		if 0 <= row < rows and 0 <= col < cols:
 			screen.addstr(row, col, symbol, color)
-			
+		
 	def draw_string(self, row, col, string):
 		screen = self.screen
 		rows, cols = screen.getmaxyx() 
@@ -130,20 +176,27 @@ class Game:
 		diff = cols - (col + len(string))
 		if diff < 0:
 			string = string[:diff]
-		screen.addstr(row, col, string)
-		 
+		screen.addstr(row, col, string)	 
 		
 	def draw_walls(self, offset_y):	
 		board = self.get_board()
 		player = self.get_player()
 		height = board.height
 		width = board.width
+		player = self.get_player()
 		
 		for pos in board.iter_square(0, 0, width-1, height-1):
 			tile = board.get_tile(pos)
-			symbol = WALL_SYMBOL if tile.wall else " "
+			if not tile.revealed:
+				symbol = " "
+			elif tile.wall:
+				symbol = WALL_SYMBOL
+			else:
+				symbol = "." if player.sees(pos) else " "
+			
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol)
-	
+			
+			
 	def draw_stats(self):
 		board = self.get_board()
 		height = board.height
@@ -162,20 +215,20 @@ class Game:
 		]
 		for i in range(len(strings)):
 			padded = strings[i].ljust(6)
-			self.draw_string(i, width + 6, padded)
-			
-		
-		
-		
-		
+			self.draw_string(i, width + 6, padded)	
+
 	def draw_monsters(self, offset_y):
 		player = self.get_player()
 		for m in self.monsters:
 			pos = m.pos
 			color = 0
-			if m.state == "IDLE":
-				color = curses.A_REVERSE
-			self.draw_symbol(pos.y + offset_y, pos.x, "m", color)	
+			symbol = " "
+			if player.sees(m):
+				symbol = "m"
+				if m.state == "IDLE":
+					color = curses.A_REVERSE
+			
+			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color)	
 		
 		pos = player.pos
 		self.draw_symbol(pos.y + offset_y, pos.x, PLAYER_SYMBOL, curses.A_REVERSE)
@@ -207,11 +260,18 @@ class Game:
 			msg = displayed[i]
 			padded = msg.ljust(cols)
 			self.draw_string(y + i, 0, padded)			
-		
+
+	def reveal_seen_tiles(self):
+		board = self.get_board()
+		player = self.get_player()
+		for pos in player.fov:
+			board.reveal_tile_at(pos)
+			
 	def draw_board(self):
 		screen = self.screen
 		offset_y = 1
 		
+		self.reveal_seen_tiles()
 		self.draw_walls(offset_y)
 		self.draw_monsters(offset_y)
 		self.draw_stats()

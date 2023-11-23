@@ -1,0 +1,31 @@
+[
+	{
+		"id": "bat",
+		"name": "bat",
+		"STR": 2,
+		"DEX": 15,
+		"CON": 8,
+		"INT": 2,
+		"WIS": 12,
+		"CHA": 4,
+		"HP": 2,
+		"to_hit": 0,
+		"blindsight": {
+			"range": 12
+		}
+	},
+	{
+		"id": "jackal",
+		"name": "jackal",
+		"STR": 8,
+		"DEX": 15,
+		"CON": 11,
+		"INT": 3,
+		"WIS": 12,
+		"CHA": 6,
+		"HP": 4,
+		"to_hit": 0,
+		"pack_travel": true
+	}
+
+]
