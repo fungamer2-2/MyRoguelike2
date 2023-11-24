@@ -19,7 +19,11 @@ class Monster(Entity):
 		self.path = deque()
 		self.pack = True
 		self.to_hit = 0
-	
+		self.awareness = 0
+		
+	def is_monster(self):
+		return True
+		
 	@classmethod
 	def from_type(cls, typ):
 		m = cls()
@@ -172,7 +176,7 @@ class Monster(Entity):
 		
 		target = self.target_pos
 		
-		max_dist = 2 * (self.INT + 1)
+		max_dist = 2 * (self.WIS + 1)
 		can_path = self.distance(target) <= max_dist and self.path_towards(target)
 		
 		if not (can_path or self.move_towards(target)):
@@ -202,7 +206,12 @@ class Monster(Entity):
 			if self.target_pos != target:
 				self.set_target(target)
 				return True
-		return False	
+		return False
+		
+	def alerted(self):
+		if self.state != "AWARE":
+			self.state = "AWARE"
+			self.awareness = 0
 			
 	def attack_pos(self, pos):
 		g = self.g
@@ -243,9 +252,17 @@ class Monster(Entity):
 			case "IDLE":
 				self.idle()
 				if self.sees(player):
-					self.state = "AWARE"
-					self.target_entity(player)
-				
+					roll = gauss_roll((player.DEX-10)/2)
+					perception = 10 + (self.WIS-10)/2
+					if roll < perception:
+						self.awareness += 1 + perception - roll
+						if self.awareness >= dice(1, 5):
+							self.awareness = 0
+							self.state = "AWARE"
+							self.target_entity(player)
+					else:
+						self.awareness = max(self.awareness - 1, 0)
+					
 			case "AWARE":	
 				if self.sees(player):
 					grouped = False

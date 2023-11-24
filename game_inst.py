@@ -18,6 +18,7 @@ class Game:
 		self.msg_log = MessageLog(MESSAGE_LOG_CAPACITY)
 		self.window_init = True
 		self.mon_types = {}
+		self.level = 1
 		
 	def check_mon_type(self, typ):
 		if typ not in self.mon_types:
@@ -39,12 +40,20 @@ class Game:
 		Entity.g = self
 		self.load_monsters()
 		
+		self.generate_level()	
+		self.draw_board()
+		
+	def generate_level(self):
 		board = self.get_board()
+		
+		self.monsters.clear()
+		board.clear_los_cache()
+		board.clear_collision_cache()
 		board.procgen_level()
 		self.place_player()
-		for _ in range(12):
-			self.place_monster("jackal")		
-		self.draw_board()
+		for _ in range(8):
+			self.place_monster("bat")
+		
 		
 	def deinit_window(self):
 		if not self.window_init:
@@ -279,5 +288,18 @@ class Game:
 		screen.move(20 + offset_y, 0)
 		screen.refresh()
 	
-	
+	def process_key_input(self, char):
+		player = self.get_player()
+		if char == "w":
+			return player.move_dir(0, -1)
+		if char == "s":
+			return player.move_dir(0, 1)
+		elif char == "a":
+			return player.move_dir(-1, 0)
+		elif char == "d":
+			return player.move_dir(1, 0)
+		elif char == " ":
+			return True
+		
+		return False
 	

@@ -15,6 +15,9 @@ class Player(Entity):
 		self.regen_tick = 0
 		self.fov = set()
 		
+	def is_player(self):
+		return True
+		
 	def calc_fov(self):
 		g = self.g
 		board = g.get_board()
@@ -76,6 +79,7 @@ class Player(Entity):
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
 		
+		mon.alerted()
 		return True
 		
 	def move_dir(self, dx, dy):

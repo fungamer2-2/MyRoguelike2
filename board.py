@@ -16,11 +16,18 @@ class Board:
 	def __init__(self, width, height):
 		self.width = width
 		self.height = height
-		self.grid = [[Tile() for _ in range(width)] for _ in range(height)]
+		self.clear_grid()
 		self.mon_collision_cache = [[None for i in range(width)] for j in range(height)]	
 		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
 		
+	def clear_grid(self):
+		width = self.width
+		height = self.height
+		self.grid = [[Tile() for _ in range(width)] for _ in range(height)]	
 		
+	def init_border(self):
+		width = self.width
+		height = self.height
 		for x in range(width):
 			self.set_wall(x, 0, True)
 			self.set_wall(x, height-1, True)
@@ -42,6 +49,8 @@ class Board:
 		return None
 		
 	def clear_los_cache(self):
+		width = self.width
+		height = self.height
 		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
 	
 	def diagonal_blocked(self, p1, p2):
@@ -190,6 +199,8 @@ class Board:
 					
 	def procgen_level(self):
 		from procgen import procgen
+		self.clear_grid()
+		self.init_border()
 		procgen(self)
 	
 	def get_fov(self, pos):

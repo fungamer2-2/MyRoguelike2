@@ -13,6 +13,12 @@ class Entity(ABC):
 		self.HP = self.MAX_HP = 10
 		self.pos = Point()
 		
+	def is_player(self):
+		return False
+		
+	def is_monster(self):
+		return True
+		
 	def calc_evasion(self):
 		return 10 + (self.DEX - 10) / 2
 	

@@ -15,21 +15,7 @@ def main():
 	while True:
 		curses.flushinp()
 		char = g.get_char()
-		valid = False
-		if char == "w":
-			valid = True
-			player.move_dir(0, -1)
-		elif char == "s":
-			valid = True
-			player.move_dir(0, 1)
-		elif char == "a":
-			valid = True
-			player.move_dir(-1, 0)
-		elif char == "d":
-			valid = True
-			player.move_dir(1, 0)
-		elif char == " ":
-			valid = True
+		valid = g.process_key_input(char)
 		if valid:	
 			g.do_turn()
 		g.draw_board()
