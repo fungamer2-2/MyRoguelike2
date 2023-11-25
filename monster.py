@@ -20,9 +20,14 @@ class Monster(Entity):
 		self.pack = True
 		self.to_hit = 0
 		self.awareness = 0
+		self.damage = Dice(0,0,0)
 		
 	def is_monster(self):
 		return True
+		
+	def is_ally(self, other):
+		return other.id == self.id
+		
 		
 	@classmethod
 	def from_type(cls, typ):
@@ -37,6 +42,7 @@ class Monster(Entity):
 		m.HP = m.MAX_HP = typ.HP
 		m.pack = typ.pack_travel
 		m.to_hit = typ.to_hit
+		m.damage = typ.base_damage
 		return m
 	
 	def get_name(self, capitalize=False):
@@ -176,7 +182,7 @@ class Monster(Entity):
 		
 		target = self.target_pos
 		
-		max_dist = 2 * (self.WIS + 1)
+		max_dist = 3 + self.WIS*3//2
 		can_path = self.distance(target) <= max_dist and self.path_towards(target)
 		
 		if not (can_path or self.move_towards(target)):
@@ -191,6 +197,8 @@ class Monster(Entity):
 		for mon in g.monsters_in_radius(self.pos, 4):	
 			if not self.sees(mon):
 				continue
+			if not self.is_ally(mon):
+				pass
 			if mon.state == "IDLE":
 				continue	
 		
@@ -217,7 +225,7 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		if not (c := g.entity_at(pos)):
-			self.add_msg("{self.get_name(True)} attacks empty space.")
+			self.add_msg(f"{self.get_name(True)} attacks empty space.")
 			return
 		
 		assert isinstance(c, Player) #TODO: Remove when it's possible for monsters to attack other monsters
@@ -228,18 +236,22 @@ class Monster(Entity):
 			allies = 0
 			for p in board.points_in_radius(self.pos, 1):
 				mon = g.monster_at(p)
-				if mon and mon.id == self.id:
+				if mon and self.is_ally(mon):
 					allies += 1
+					if allies >= 2:
+						break
 			if allies > 0:
 				bonus = 2.5*allies
-				self.add_msg(f"+{bonus} due to pack tactics")
 				mod += bonus
 					
 		roll = gauss_roll(mod)
 		self.add_msg(f"{roll} vs {c.calc_evasion()}")
 		if roll >= c.calc_evasion():
+			damage = self.damage.roll()
+			damage += div_rand(self.STR - 10, 2)
+			damage = max(damage, 1)
 			self.add_msg(f"{self.get_name(True)} attacks {c.get_name()}.")
-			c.take_damage(1)
+			c.take_damage(damage)
 		else:
 			self.add_msg(f"{self.get_name(True)}'s attack misses {c.get_name()}.")
 			
@@ -256,9 +268,9 @@ class Monster(Entity):
 					perception = 10 + (self.WIS-10)/2
 					if roll < perception:
 						self.awareness += 1 + perception - roll
-						if self.awareness >= dice(1, 5):
-							self.awareness = 0
-							self.state = "AWARE"
+						self.add_msg(f"The monster now has {self.awareness} awareness.")
+						if self.awareness >= random.uniform(3, 6):
+							self.alerted()
 							self.target_entity(player)
 					else:
 						self.awareness = max(self.awareness - 1, 0)

@@ -31,6 +31,8 @@ def div_rand(x, y):
  
 	
 def dice(num, sides):
+	if sides == 1:
+		return num
 	return sum(random.randint(1, sides) for _ in range(num))
 
 def gen_stat():
@@ -49,6 +51,17 @@ def display_bar(val, max, width):
 		bars += "."
 	bars += " "*(width-len(bars))
 	return f"[{bars}]"
+	
+class Dice:
+		
+	def __init__(self, num, sides, mod):
+		self.num = num
+		self.sides = sides
+		self.mod = mod
+		
+	def roll(self):
+		return dice(self.num, self.sides) + self.mod
+		
 	
 class Point:
 	

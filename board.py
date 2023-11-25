@@ -267,7 +267,5 @@ class Board:
 					
 					if can_see:
 						fov.add(p)
-			
-				
 				
 		return fov

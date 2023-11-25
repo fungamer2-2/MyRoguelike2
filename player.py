@@ -61,16 +61,25 @@ class Player(Entity):
 			self.add_msg("You swing at empty space.")
 			return True
 		
+		sneak_attack = False
 		mod = self.calc_to_hit_bonus()
 		mod += (self.STR - 10) / 2
+		if mon.state != "AWARE":
+			mod += 5
+			if x_in_y(self.DEX, 30) and one_in(2):
+				sneak_attack = True
 		
 		roll = gauss_roll(mod)
 		evasion = mon.calc_evasion()
 		self.add_msg(f"To-hit: {gauss_roll_prob(mod, evasion):.2f}%")
 		if roll >= evasion:
+			if sneak_attack:
+				self.add_msg(f"You catch {mon.get_name()} off-guard!")
 			self.add_msg(f"You hit {mon.get_name()}.")
 			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
 			damage = max(damage, 1)
+			if sneak_attack:
+				damage += dice(1, 6)
 			mon.take_damage(damage)
 			if not mon.is_alive():
 				self.add_msg(f"{mon.get_name(True)} dies!")

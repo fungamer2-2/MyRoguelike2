@@ -1,4 +1,43 @@
 import json
+from utils import *
+
+def parse_dice(string):
+	def invalid():
+		raise ValueError("invalid dice format {string!r}")
+	def check_digit(s):
+		if not s.isdigit():
+			invalid()
+			
+	string = string.strip()
+	if string.isdigit():
+		return (0, 0, int(string))
+	if "d" not in string:
+		invalid()
+	p = string.partition("d")
+	
+	num = p[0]
+	check_digit(num)
+	
+	num = int(num)
+	right = p[2]
+	if right.isdigit():
+		return (num, int(right), 0)
+	
+	if "+" in right:
+		p = right.partition("+")
+	elif "-" in right:
+		p = right.partition("-")
+	else:
+		invalid()
+	sides = p[0]
+	check_digit(sides)
+	sides = int(sides)
+	
+	mod = p[2]
+	check_digit(mod)
+	mod = int(mod)
+	
+	return (num, sides, mod)
 
 class JSONObject:
 	
@@ -22,7 +61,7 @@ class JSONObject:
 		val = d[key]
 		if converter:
 			val = converter(val)
-		return vals
+		return val
 		
 	def set_field(self, key, val):
 		self._attrs[key] = val
@@ -35,12 +74,7 @@ class JSONObject:
 		self.set_field(key, self.get_optional(d, key, default, converter))
 	
 	def load_required(self, d, key, converter=None):
-		if key not in d:
-			raise KeyError(f"JSON object missing required key {key!r}")
-		val = d[key]
-		if converter:
-			val = converter(val)
-		self._attrs[key] = val
+		self._attrs[key] = self.get_required(d, key, converter)
 		
 class Blindsight(JSONObject):
 	
@@ -51,6 +85,7 @@ class Blindsight(JSONObject):
 		obj.load_optional(d, "blind_beyond", False)
 		return obj
 		
+
 class MonsterType(JSONObject):
 	
 	@classmethod
@@ -65,6 +100,9 @@ class MonsterType(JSONObject):
 		obj.load_required(d, "WIS")
 		obj.load_required(d, "HP")
 		obj.load_required(d, "to_hit")
+		dam = obj.get_optional(d, "base_damage", "0")
+		obj.set_field("base_damage", Dice(*parse_dice(dam)))
+		
 		obj.load_optional(d, "pack_travel", False)
 		obj.load_optional(d, "blindsight", False)
 		

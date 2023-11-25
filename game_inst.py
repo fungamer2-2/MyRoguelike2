@@ -52,7 +52,7 @@ class Game:
 		board.procgen_level()
 		self.place_player()
 		for _ in range(8):
-			self.place_monster("bat")
+			self.place_monster("jackal")
 		
 		
 	def deinit_window(self):

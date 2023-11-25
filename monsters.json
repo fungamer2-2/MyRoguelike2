@@ -10,6 +10,7 @@
 		"CHA": 4,
 		"HP": 2,
 		"to_hit": 0,
+		"base_damage": "1",
 		"blindsight": {
 			"range": 12
 		}
@@ -25,7 +26,7 @@
 		"CHA": 6,
 		"HP": 4,
 		"to_hit": 0,
+		"base_damage": "1d4",
 		"pack_travel": true
 	}
-
 ]
