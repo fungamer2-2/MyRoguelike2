@@ -182,11 +182,15 @@ class Monster(Entity):
 		
 		target = self.target_pos
 		
+		if (c := g.entity_at(target)) and c.is_player() and self.distance(target) <= 1:
+			if self.attack_pos(target):
+				return
+				
 		max_dist = 3 + self.WIS*3//2
 		can_path = self.distance(target) <= max_dist and self.path_towards(target)
 		
 		if not (can_path or self.move_towards(target)):
-			self.set_rand_target()	
+			self.set_rand_target()
 			
 	def set_pack_target_pos(self):
 		g = self.g	
@@ -217,18 +221,28 @@ class Monster(Entity):
 		return False
 		
 	def alerted(self):
-		if self.state != "AWARE":
-			self.state = "AWARE"
+		g = self.g
+		board = g.get_board()
+		if self.state == "TRACKING":
+			self.patience = max(self.patience, random.randint(5, 15) + self.WIS)
+		else:
 			self.awareness = 0
+			if self.pack:
+				for mon in g.monsters_in_radius(self.pos, 7):	
+					if self.is_ally(mon):
+						mon.state == "AWARE"
+			if self.state == "IDLE":
+				self.state = "AWARE"
+	
+		
 			
 	def attack_pos(self, pos):
 		g = self.g
 		board = g.get_board()
 		if not (c := g.entity_at(pos)):
-			self.add_msg(f"{self.get_name(True)} attacks empty space.")
-			return
+			return False
 		
-		assert isinstance(c, Player) #TODO: Remove when it's possible for monsters to attack other monsters
+		assert c.is_player() #TODO: Remove when it's possible for monsters to attack other monsters
 		
 		mod = self.to_hit
 		
@@ -254,7 +268,8 @@ class Monster(Entity):
 			c.take_damage(damage)
 		else:
 			self.add_msg(f"{self.get_name(True)}'s attack misses {c.get_name()}.")
-			
+		return True
+		
 	def move(self):
 		g = self.g
 		board = g.get_board()
@@ -263,12 +278,11 @@ class Monster(Entity):
 		match self.state:
 			case "IDLE":
 				self.idle()
-				if self.sees(player):
+				if player.sees(self):
 					roll = gauss_roll((player.DEX-10)/2)
 					perception = 10 + (self.WIS-10)/2
 					if roll < perception:
 						self.awareness += 1 + perception - roll
-						self.add_msg(f"The monster now has {self.awareness} awareness.")
 						if self.awareness >= random.uniform(3, 6):
 							self.alerted()
 							self.target_entity(player)
@@ -284,9 +298,9 @@ class Monster(Entity):
 					if not grouped:
 						self.target_entity(player)
 						
-					if self.distance(player) <= 1:
-						self.set_target(self.pos)
-						self.attack_pos(player.pos)
+					if self.id == "bat" and one_in(5):
+						self.set_rand_target()	
+					
 				else:
 					self.state = "TRACKING"
 					self.target_entity(player)
@@ -298,8 +312,6 @@ class Monster(Entity):
 				if self.target_pos == self.pos:
 					if x_in_y(3, 5):
 						self.set_target(player.pos)
-					elif self.pack and self.set_pack_target_pos():
-						loss = 0
 					
 				self.patience -= loss
 				if self.sees(player):

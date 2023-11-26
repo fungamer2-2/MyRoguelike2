@@ -31,6 +31,10 @@ class Game:
 		self.check_mon_type(typ)
 		return self.mon_types[typ]
 		
+	def get_all_monster_types(self):
+		for typ in self.mon_types.values():
+			yield typ
+		
 	def add_message(self, text):
 		self.msg_log.add_message(text)
 		
@@ -51,8 +55,19 @@ class Game:
 		board.clear_collision_cache()
 		board.procgen_level()
 		self.place_player()
+		self.place_monsters()
+		
+	def place_monsters(self):
+		eligible_types = []
+		for typ in self.get_all_monster_types():
+			if typ.level <= 1 or self.level >= typ.level + random.randint(0, 2):
+				eligible_types.append(typ)
+		assert len(eligible_types) > 0
+			
+		num_monsters = random.randint(3, 5)
+		num_monsters += random.randint(0, round(self.level ** 0.6))
 		for _ in range(8):
-			self.place_monster("jackal")
+			self.place_monster("bat")
 		
 		
 	def deinit_window(self):
@@ -87,20 +102,36 @@ class Game:
 		if m.move_to(pos):
 			board.set_collision_cache(pos, m)
 			self.monsters.append(m)
-			return True
-		return False
+			return m
+		return None
 		
-	def place_monster(self, typ):
-		self.check_mon_type(typ)
+	def place_monster(self, typ_id):
+		typ = self.get_mon_type(typ_id)
 		board = self.get_board()
-		for tries in range(150):
-			pos = board.random_pos()
-			if board.passable(pos) and not self.monster_at(pos):
-				break
-		else:
-			return None
 		
-		return self.place_monster_at(typ, pos)
+		found_pos = None
+		if typ.pack_travel and len(self.monsters) > 2 and not one_in(4):
+			pos = random.choice(self.monsters).pos
+			candidates = []
+			for p in board.points_in_radius(pos, 3):
+				if not board.has_line_of_sight(p, pos):
+					continue
+				if not self.monster_at(p):
+					if one_in(pos.distance(p)):
+						candidates.append(p)
+			if candidates:
+				found_pos = random.choice(candidates)	
+		
+		if not found_pos:	
+			for tries in range(150):
+				pos = board.random_pos()
+				if board.passable(pos) and not self.monster_at(pos):
+					found_pos = pos
+					break
+			if not found_pos:
+				return None
+		
+		return self.place_monster_at(typ_id, found_pos)
 		
 	def load_monsters(self):
 		self.mon_types = load_monster_types()

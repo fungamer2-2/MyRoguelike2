@@ -17,7 +17,7 @@ class Entity(ABC):
 		return False
 		
 	def is_monster(self):
-		return True
+		return False
 		
 	def calc_evasion(self):
 		return 10 + (self.DEX - 10) / 2
