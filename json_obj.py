@@ -93,6 +93,7 @@ class MonsterType(JSONObject):
 		obj = cls()
 		obj.load_required(d, "id")
 		obj.load_required(d, "name")
+		obj.load_required(d, "symbol")
 		obj.load_required(d, "STR")
 		obj.load_required(d, "DEX")
 		obj.load_required(d, "CON")

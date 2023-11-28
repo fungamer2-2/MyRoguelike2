@@ -1,6 +1,6 @@
 import random
 from copy import deepcopy
-from utils import Point
+from utils import *
 from pathfinding import find_path
 
 def count_neighbors(grid, x, y):
@@ -101,10 +101,10 @@ def procgen(board):
 	p = random.triangular(45, 55)
 	for y in range(height-2):
 		for x in range(width-2):
-			if random.uniform(0, 100) < p:
+			if x_in_y(p, 100):
 				grid[y][x] = 1	
 	
-	iters = random.randint(3, 4) + random.randint(0, 4)
+	iters = rng(3, 4) + rng(0, 4)
 	for _ in range(iters):
 		cellular_automata_pass(grid)
 						
@@ -129,7 +129,7 @@ def procgen(board):
 		if i < len(zones) - 1:
 			p2 = random.choice(zones[i + 1])
 		else:
-			zone = zones[random.randint(0, len(zones) - 1)]
+			zone = zones[rng(0, len(zones)-1)]
 			p2 = random.choice(zone)	
 		path = find_path(board, p1, p2, passable_func, cost_func)
 		

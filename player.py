@@ -11,12 +11,23 @@ class Player(Entity):
 		self.INT = gen_stat()
 		self.WIS = gen_stat()
 		self.MAX_HP = 10
-		self.level = 1
+		self.xp = 0
+		self.xp_level = 1
 		self.regen_tick = 0
 		self.fov = set()
 		
 	def is_player(self):
 		return True
+		
+	def xp_to_next_level(self):
+		amount = 100 * self.xp_level ** 1.5
+		return round(amount/10)*10
+		
+	def gain_xp(self, amount):
+		self.xp += amount
+		while self.xp >= self.xp_to_next_level():
+			self.xp -= self.xp_to_next_level()
+			self.xp_level += 1	
 		
 	def calc_fov(self):
 		g = self.g
@@ -34,7 +45,7 @@ class Player(Entity):
 		return "You" if capitalize else "you"
 		
 	def calc_to_hit_bonus(self):
-		return (self.level - 1) / 3
+		return (self.xp_level - 1) / 4
 		
 	def regen_rate(self):
 		mult = self.CON / 10

@@ -21,19 +21,21 @@ class Monster(Entity):
 		self.to_hit = 0
 		self.awareness = 0
 		self.damage = Dice(0,0,0)
+		self.type = None
 		
 	def is_monster(self):
 		return True
 		
 	def is_ally(self, other):
 		return other.id == self.id
-		
-		
+				
 	@classmethod
 	def from_type(cls, typ):
 		m = cls()
 		m.id = typ.id
+		m.type = typ
 		m.name = typ.name
+		m.symbol = typ.symbol
 		m.STR = typ.STR
 		m.DEX = typ.DEX
 		m.CON = typ.CON
@@ -52,9 +54,10 @@ class Monster(Entity):
 	def calc_path_to(self, pos):
 		g = self.g
 		board = g.get_board()
+		
 		def passable_func(p):
 			return p == pos or board.passable(p)
-		cost_func = lambda p: 1
+		
 		def cost_func(p):
 			return 1 + 2*(g.monster_at(p) is not None)
 		
@@ -73,6 +76,7 @@ class Monster(Entity):
 		
 		if self.path:
 			if pos != self.path[-1] or not self.move_to(self.path.popleft()):
+				#Either target tile changed, or path is blocked; recalculate path
 				self.calc_path_to(pos)
 				if self.path:
 					return self.move_to(self.path.popleft())
@@ -122,7 +126,7 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		
-		if self.pack and not one_in(3) and self.set_pack_target_pos():
+		if self.pack and not one_in(4) and self.set_pack_target_pos():
 			return
 			
 		self.set_rand_target()
@@ -178,6 +182,7 @@ class Monster(Entity):
 				can_move = True
 				break
 		if not can_move:
+			#We can't move at all, so bail out
 			return
 		
 		target = self.target_pos
@@ -189,7 +194,9 @@ class Monster(Entity):
 		max_dist = 3 + self.WIS*3//2
 		can_path = self.distance(target) <= max_dist and self.path_towards(target)
 		
+		#If we can't pathfind (or target too far), try direct movement instead
 		if not (can_path or self.move_towards(target)):
+			#As a last resort, move randomly.
 			self.set_rand_target()
 			
 	def set_pack_target_pos(self):
@@ -198,7 +205,8 @@ class Monster(Entity):
 		y = 0
 		num = 0
 		
-		for mon in g.monsters_in_radius(self.pos, 4):	
+		#Each membor of the pack tries to move toward the average of its nearby members
+		for mon in g.monsters_in_radius(self.pos, 3):	
 			if not self.sees(mon):
 				continue
 			if not self.is_ally(mon):
@@ -224,16 +232,15 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		if self.state == "TRACKING":
-			self.patience = max(self.patience, random.randint(5, 15) + self.WIS)
+			self.patience = max(self.patience, rng(5, 15) + self.WIS)
 		else:
 			self.awareness = 0
-			if self.pack:
+			if self.pack: #If we alert one member of the pack, alert the entire pack.
 				for mon in g.monsters_in_radius(self.pos, 7):	
 					if self.is_ally(mon):
 						mon.state == "AWARE"
 			if self.state == "IDLE":
 				self.state = "AWARE"
-	
 		
 			
 	def attack_pos(self, pos):
@@ -254,7 +261,7 @@ class Monster(Entity):
 					allies += 1
 					if allies >= 2:
 						break
-			if allies > 0:
+			if allies > 0: #Pack tactics gives a bonus to-hit if there are allies nearby
 				bonus = 2.5*allies
 				mod += bonus
 					
@@ -299,7 +306,7 @@ class Monster(Entity):
 						self.target_entity(player)
 						
 					if self.id == "bat" and one_in(5):
-						self.set_rand_target()	
+						self.set_rand_target()
 					
 				else:
 					self.state = "TRACKING"

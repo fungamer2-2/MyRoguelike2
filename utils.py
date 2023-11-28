@@ -1,5 +1,7 @@
 import random, math
 
+from random import randint as rng
+
 def gauss_roll(mod):
 	return random.gauss(10 + mod, 5)
 	
@@ -14,7 +16,7 @@ def clamp(val, lo, hi):
 	return max(lo, min(val, hi))
 	
 def one_in(x):
-	return x <= 1 or random.randint(1, x) == 1
+	return x <= 1 or rng(1, x) == 1
 	
 def x_in_y(x, y):
 	return random.uniform(0.0, y) < x
@@ -27,16 +29,16 @@ def div_rand(x, y):
 	x = abs(x)
 	y = abs(y)
 	mod = x % y
-	return sign * (x//y + (random.randint(1, y) <= mod))
+	return sign * (x//y + (rng(1, y) <= mod))
  
 	
 def dice(num, sides):
 	if sides == 1:
 		return num
-	return sum(random.randint(1, sides) for _ in range(num))
+	return sum(rng(1, sides) for _ in range(num))
 
 def gen_stat():
-	vals = [random.randint(1, 6) for _ in range(4)]
+	vals = [rng(1, 6) for _ in range(4)]
 	return sum(vals) - min(vals)	
 
 def display_bar(val, max, width):

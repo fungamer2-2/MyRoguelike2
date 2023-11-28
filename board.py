@@ -1,4 +1,4 @@
-from utils import Point, points_in_line
+from utils import *
 import random
 from collections import defaultdict
 
@@ -136,8 +136,8 @@ class Board:
 		self.mon_collision_cache = [[None for i in range(width)] for j in range(height)]
 	
 	def random_pos(self):
-		x = random.randint(1, self.width - 1)
-		y = random.randint(1, self.height - 1)
+		x = rng(1, self.width - 1)
+		y = rng(1, self.height - 1)
 		return Point(x, y)
 			
 	def set_wall(self, x, y, wall):

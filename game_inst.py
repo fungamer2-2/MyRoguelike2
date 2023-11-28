@@ -13,7 +13,7 @@ class Game:
 	def __init__(self):
 		self._board = Board(50, 18)
 		self._player = Player()
-		self.screen = curses.initscr()
+		self.screen = None
 		self.monsters = []
 		self.msg_log = MessageLog(MESSAGE_LOG_CAPACITY)
 		self.window_init = True
@@ -39,6 +39,10 @@ class Game:
 		self.msg_log.add_message(text)
 		
 	def init_game(self):
+		self.screen = curses.initscr()
+		curses.start_color()
+		assert curses.has_colors()
+		
 		curses.noecho()
 		curses.curs_set(False)
 		Entity.g = self
@@ -60,13 +64,13 @@ class Game:
 	def place_monsters(self):
 		eligible_types = []
 		for typ in self.get_all_monster_types():
-			if typ.level <= 1 or self.level >= typ.level + random.randint(0, 2):
+			if self.level >= typ.level:
 				eligible_types.append(typ)
 		assert len(eligible_types) > 0
 			
-		num_monsters = random.randint(3, 5)
-		num_monsters += random.randint(0, round(self.level ** 0.6))
-		for _ in range(8):
+		num_monsters = rng(3, 5)
+		num_monsters += rng(0, round(self.level ** 0.6))
+		for _ in range(num_monsters):
 			self.place_monster("bat")
 		
 		
@@ -264,7 +268,7 @@ class Game:
 			color = 0
 			symbol = " "
 			if player.sees(m):
-				symbol = "m"
+				symbol = m.symbol 
 				if m.state == "IDLE":
 					color = curses.A_REVERSE
 			
@@ -334,3 +338,5 @@ class Game:
 		
 		return False
 	
+	def game_over(self):
+		pass
