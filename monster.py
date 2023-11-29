@@ -27,8 +27,10 @@ class Monster(Entity):
 		return True
 		
 	def is_ally(self, other):
-		return other.id == self.id
-				
+		if other.is_monster():
+			return other.id == self.id
+		return False
+		
 	@classmethod
 	def from_type(cls, typ):
 		m = cls()
@@ -46,6 +48,13 @@ class Monster(Entity):
 		m.to_hit = typ.to_hit
 		m.damage = typ.base_damage
 		return m
+		
+	def get_speed(self):
+		return self.type.speed
+		
+	def use_move_energy(self):
+		cost = div_rand(10000, self.get_speed())
+		self.use_energy(cost)
 	
 	def get_name(self, capitalize=False):
 		the = "The" if capitalize else "the"
@@ -79,13 +88,16 @@ class Monster(Entity):
 				#Either target tile changed, or path is blocked; recalculate path
 				self.calc_path_to(pos)
 				if self.path:
-					return self.move_to(self.path.popleft())
+					if self.move_to(self.path.popleft()):
+						self.use_move_energy()
+						return True
 				return False
 			return True
 		else:
 			self.calc_path_to(pos)	
-			if self.path:
-				return self.move_to(self.path.popleft())	
+			if self.path and self.move_to(self.path.popleft()):
+				self.use_move_energy()
+				return True	
 			return False
 			
 	def base_pursue_duration(self):
@@ -104,8 +116,35 @@ class Monster(Entity):
 	def has_target(self):
 		return self.target_pos is not None
 		
+	def process_state(self):	
+		g = self.g
+		board = g.get_board()
+		player = g.get_player()
+		
+		match self.state:
+			case "IDLE":
+				roll = gauss_roll((player.DEX-10)/2)
+				perception = 10 + (self.WIS-10)/2
+				if self.sees(player) and roll < perception:
+					self.awareness += 1 + perception - roll
+					if self.awareness >= random.uniform(1, 5):
+						self.alerted()
+						self.target_entity(player)
+				else:
+					self.awareness = max(self.awareness - 1, 0)			
+			case "TRACKING":
+				if self.patience > 0:
+					self.patience -= 1
+		
 	def do_turn(self):
+		assert self.energy > 0
+		
+		self.process_state()
+		old = self.energy
 		self.move()
+		if self.energy == old:
+			self.use_energy(100)
+		
 		
 	def set_rand_target(self):
 		g = self.g
@@ -191,10 +230,9 @@ class Monster(Entity):
 			if self.attack_pos(target):
 				return
 				
-		max_dist = 3 + self.WIS*3//2
-		can_path = self.distance(target) <= max_dist and self.path_towards(target)
+		can_path = self.path_towards(target)
 		
-		#If we can't pathfind (or target too far), try direct movement instead
+		#If we can't pathfind, try direct movement instead
 		if not (can_path or self.move_towards(target)):
 			#As a last resort, move randomly.
 			self.set_rand_target()
@@ -228,6 +266,18 @@ class Monster(Entity):
 				return True
 		return False
 		
+	def take_damage(self, dam):
+		super().take_damage(dam)
+		if self.HP <= 0:
+			self.die()
+		
+	def die(self):
+		g = self.g
+		board = g.get_board()
+		self.HP = 0
+		self.add_msg_if_u_see(self, f"{self.get_name(True)} dies!", "good")
+		board.erase_collision_cache(self.pos)
+		
 	def alerted(self):
 		g = self.g
 		board = g.get_board()
@@ -241,7 +291,12 @@ class Monster(Entity):
 						mon.state == "AWARE"
 			if self.state == "IDLE":
 				self.state = "AWARE"
-		
+				
+	def move_dir(self, dx, dy):
+		if super().move_dir(dx, dy):
+			self.use_move_energy()
+			return True
+		return False
 			
 	def attack_pos(self, pos):
 		g = self.g
@@ -271,10 +326,14 @@ class Monster(Entity):
 			damage = self.damage.roll()
 			damage += div_rand(self.STR - 10, 2)
 			damage = max(damage, 1)
-			self.add_msg(f"{self.get_name(True)} attacks {c.get_name()}.")
+			
+			msg_type = "bad" if c.is_player() else "neutral"
+			self.add_msg_if_u_see(self, f"{self.get_name(True)} attacks {c.get_name()}.", msg_type)
 			c.take_damage(damage)
 		else:
-			self.add_msg(f"{self.get_name(True)}'s attack misses {c.get_name()}.")
+			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {c.get_name()}.")
+		
+		self.use_energy(100)
 		return True
 		
 	def move(self):
@@ -285,17 +344,7 @@ class Monster(Entity):
 		match self.state:
 			case "IDLE":
 				self.idle()
-				if player.sees(self):
-					roll = gauss_roll((player.DEX-10)/2)
-					perception = 10 + (self.WIS-10)/2
-					if roll < perception:
-						self.awareness += 1 + perception - roll
-						if self.awareness >= random.uniform(3, 6):
-							self.alerted()
-							self.target_entity(player)
-					else:
-						self.awareness = max(self.awareness - 1, 0)
-					
+				
 			case "AWARE":	
 				if self.sees(player):
 					grouped = False
@@ -315,12 +364,13 @@ class Monster(Entity):
 					self.patience = round(patience * random.triangular(0.8, 1.2))
 				
 			case "TRACKING":
-				loss = 1
+				
 				if self.target_pos == self.pos:
-					if x_in_y(3, 5):
+					player_stealth_roll = gauss_roll((player.DEX-10)/2)
+					perception_roll = gauss_roll((self.WIS-10)/2)
+					if perception_roll >= player_stealth_roll:
 						self.set_target(player.pos)
-					
-				self.patience -= loss
+						
 				if self.sees(player):
 					self.state = "AWARE"
 				elif self.patience <= 0:

@@ -3,8 +3,9 @@ from board import Board
 from entity import Entity
 from monster import Monster
 from player import Player
-from messages import MessageLog
 from const import *
+from messages import MessageLog
+
 from utils import *	
 import curses, textwrap
 
@@ -35,21 +36,31 @@ class Game:
 		for typ in self.mon_types.values():
 			yield typ
 		
-	def add_message(self, text):
-		self.msg_log.add_message(text)
+	def add_message(self, text, typ="neutral"):
+		self.msg_log.add_message(text, typ)
+		
+	def init_colors(self):
+		curses.start_color()
+		assert curses.has_colors()
+		
+		curses.use_default_colors()
+		for i in range(curses.COLORS-1):
+			curses.init_pair(i + 1, i + 1, -1)
 		
 	def init_game(self):
 		self.screen = curses.initscr()
-		curses.start_color()
-		assert curses.has_colors()
+		
+		self.init_colors()
 		
 		curses.noecho()
 		curses.curs_set(False)
 		Entity.g = self
 		self.load_monsters()
 		
-		self.generate_level()	
+		self.generate_level()
+			
 		self.draw_board()
+		
 		
 	def generate_level(self):
 		board = self.get_board()
@@ -68,10 +79,11 @@ class Game:
 				eligible_types.append(typ)
 		assert len(eligible_types) > 0
 			
-		num_monsters = rng(3, 5)
+		num_monsters = rng(4, 6)
 		num_monsters += rng(0, round(self.level ** 0.6))
 		for _ in range(num_monsters):
-			self.place_monster("bat")
+			typ = random.choice(eligible_types)
+			self.place_monster(typ.id)
 		
 		
 	def deinit_window(self):
@@ -161,22 +173,39 @@ class Game:
 		
 	def get_player(self):
 		return self._player
-	
+		
 	def do_turn(self):
 		board = self.get_board()
-		self.refresh_mon_pos_cache()
 		player = self.get_player()
+		used = player.energy_used
+		
+		if used <= 0:
+			return
 		player.do_turn()
-		need_rebuild = False
-		for m in self.monsters:
-			if m.is_alive():
-				m.do_turn()
-				expected = m.pos
-			else:
-				board.erase_collision_cache(m.pos)
-				expected = None
+		self.refresh_mon_pos_cache()
+		
+		player.energy += used	
+		
+		for m in self.monsters:		
+			m.energy += used
 			
+		remaining = self.monsters.copy()
+		
+		while len(remaining) > 0:
+			nextremain = []
+			for m in remaining:
+				if not m.is_alive():
+					
+					continue
+				if m.energy <= 0:
+					continue
+				m.do_turn()
+				if m.energy > 0:
+					nextremain.append(m)
+			remaining = nextremain
+		
 		self.remove_dead()
+		
 		
 	def refresh_mon_pos_cache(self):
 		board = self.get_board()
@@ -185,7 +214,8 @@ class Game:
 		
 		board.set_collision_cache(player.pos, player)	
 		for m in self.monsters:
-			board.set_collision_cache(m.pos, m)
+			if m.is_alive():
+				board.set_collision_cache(m.pos, m)
 		
 	def remove_dead(self):
 		board = self.get_board()
@@ -212,7 +242,7 @@ class Game:
 		if 0 <= row < rows and 0 <= col < cols:
 			screen.addstr(row, col, symbol, color)
 		
-	def draw_string(self, row, col, string):
+	def draw_string(self, row, col, string, color=0):
 		screen = self.screen
 		rows, cols = screen.getmaxyx() 
 		if col >= cols or not (0 <= row < rows):
@@ -220,7 +250,7 @@ class Game:
 		diff = cols - (col + len(string))
 		if diff < 0:
 			string = string[:diff]
-		screen.addstr(row, col, string)	 
+		screen.addstr(row, col, string, color)	 
 		
 	def draw_walls(self, offset_y):	
 		board = self.get_board()
@@ -235,11 +265,12 @@ class Game:
 				symbol = " "
 			elif tile.wall:
 				symbol = WALL_SYMBOL
+			elif tile.stair:
+				symbol = STAIR_SYMBOL
 			else:
 				symbol = "." if player.sees(pos) else " "
 			
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol)
-			
 			
 	def draw_stats(self):
 		board = self.get_board()
@@ -250,7 +281,14 @@ class Game:
 		bar = "HP: " + display_bar(player.HP, player.MAX_HP, 20)			
 		p = f"({player.HP}/{player.MAX_HP})".ljust(12)
 		bar += " " + p
-		self.draw_string(0, 0, bar)
+		
+		if player.HP <= player.MAX_HP // 5:
+			color = COLOR_RED
+		elif player.HP <= player.MAX_HP // 2:
+			color = COLOR_YELLOW
+		else:
+			color = COLOR_GREEN
+		self.draw_string(0, 0, bar, curses.color_pair(color))
 		
 		strings = [
 			f"STR {player.STR}",
@@ -287,10 +325,10 @@ class Game:
 		groups = []
 		
 		total_lines = 0
-		for message in reversed(messages):
-			group = textwrap.wrap(message, width=cols)
-			groups.append(group)
-			total_lines += len(group)
+		for message, type in reversed(messages):
+			msg_lines = textwrap.wrap(message, width=cols)
+			groups.append([(line, type) for line in msg_lines])
+			total_lines += len(msg_lines)
 			if total_lines >= 8:
 				break
 		groups.reverse()
@@ -301,9 +339,10 @@ class Game:
 		displayed = displayed[-8:] 
 			
 		for i in range(len(displayed)):
-			msg = displayed[i]
+			msg, type = displayed[i]
+			color = curses.color_pair(MSG_TYPES[type])
 			padded = msg.ljust(cols)
-			self.draw_string(y + i, 0, padded)			
+			self.draw_string(y + i, 0, padded, color)			
 
 	def reveal_seen_tiles(self):
 		board = self.get_board()
@@ -334,9 +373,32 @@ class Game:
 		elif char == "d":
 			return player.move_dir(1, 0)
 		elif char == " ":
+			player.use_energy(100)
 			return True
 		
 		return False
-	
+		
+	def draw_game_over(self):
+		screen = self.screen
+		gameover_win = screen.subwin(18, 50, 1, 0)
+		
+		def draw_center_text(y, txt):
+			h, w = gameover_win.getmaxyx()
+			w -= 2
+			x = (w - len(txt) + 1)//2 + 1			
+			gameover_win.addstr(y, x, txt)
+		
+		
+		gameover_win.clear()
+		gameover_win.border("|", "|", "-", "-", "+", "+", "+", "+")
+		draw_center_text(1, "GAME OVER")
+		draw_center_text(2, "You have died.")
+		draw_center_text(4, "Press Enter to exit.")
+		
 	def game_over(self):
-		pass
+		self.draw_board()
+		self.draw_game_over()
+		self.screen.refresh()
+		while ord(self.get_char()) != 10: 
+			pass
+		

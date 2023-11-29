@@ -102,6 +102,7 @@ class MonsterType(JSONObject):
 		obj.load_required(d, "HP")
 		obj.load_required(d, "level")
 		obj.load_required(d, "to_hit")
+		obj.load_optional(d, "speed", 100)
 		dam = obj.get_optional(d, "base_damage", "0")
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		

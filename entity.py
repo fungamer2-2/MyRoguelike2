@@ -1,4 +1,5 @@
 from utils import *
+from const import *
 from abc import abstractmethod, ABC
 
 class Entity(ABC):
@@ -12,6 +13,10 @@ class Entity(ABC):
 		self.WIS = 10
 		self.HP = self.MAX_HP = 10
 		self.pos = Point()
+		self.energy = 100
+		
+	def use_energy(self, amount):
+		self.energy -= amount
 		
 	def is_player(self):
 		return False
@@ -20,15 +25,24 @@ class Entity(ABC):
 		return False
 		
 	def calc_evasion(self):
-		return 10 + (self.DEX - 10) / 2
+		dex = self.DEX
+		if not self.is_alive():
+			dex = 0
+		return 10 + (dex - 10) / 2
 	
 	@abstractmethod
 	def get_name(self, capitalize=False):
 		return "Unknown Entity"
 		
-	def add_msg(self, text):
+	def add_msg(self, text, typ="neutral"):
 		g = self.g
-		g.add_message(text)
+		g.add_message(text, typ)
+		
+	def add_msg_if_u_see(self, other, text, typ="neutral"):
+		g = self.g
+		player = g.get_player()
+		if player.sees(other):
+			self.add_msg(text, typ)
 		
 	def can_move_to(self, pos):
 		g = self.g

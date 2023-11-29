@@ -7,6 +7,7 @@ class Tile:
 	def __init__(self):
 		self.wall = False
 		self.revealed = False
+		self.stair = False
 		
 	def is_passable(self):
 		return not self.wall	

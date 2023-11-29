@@ -13,6 +13,7 @@
 		"to_hit": 0,
 		"base_damage": "1",
 		"level": 1,
+		"speed": 125,
 		"blindsight": {
 			"range": 12
 		}
@@ -30,7 +31,24 @@
 		"HP": 4,
 		"to_hit": 0,
 		"level": 2,
+		"speed": 135,
 		"base_damage": "1d4",
 		"pack_travel": true
+	},
+	{
+		"id": "lizard",
+		"name": "lizard",
+		"symbol": "l",
+		"STR": 2,
+		"DEX": 11,
+		"CON": 10,
+		"INT": 1,
+		"WIS": 8,
+		"CHA": 3,
+		"HP": 2,
+		"to_hit": 0,
+		"level": 1,
+		"speed": 30,
+		"base_damage": "1"
 	}
 ]

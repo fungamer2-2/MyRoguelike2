@@ -1,21 +1,31 @@
 from collections import deque
+from const import *
 
 class Message:
 	
-	def __init__(self, msg):
+	def __init__(self, msg, type):
+		self.type = type
 		self.text = msg
 		self.count = 1
-
+		
 class MessageLog:
 	
 	def __init__(self, capacity):
 		self.msgs = deque(maxlen=capacity)
 		
-	def add_message(self, msg):
-		if self.msgs and self.msgs[-1].text == msg: #Combine similar messages
+	def add_message(self, msg, typ="neutral"):
+		if typ not in MSG_TYPES:
+			raise ValueError(f"invalid message type {typ!r}")
+		
+		combine = False
+		if self.msgs:
+			last = self.msgs[-1]
+			combine = last.type == typ and last.text == msg
+			
+		if combine: #Combine similar messages
 			self.msgs[-1].count += 1
 		else:
-			self.msgs.append(Message(msg))
+			self.msgs.append(Message(msg, typ))
 			
 	def get_messages(self, num):
 		messages = []
@@ -23,7 +33,7 @@ class MessageLog:
 			text = msg.text
 			if msg.count > 1:
 				text += f" (x{msg.count})"
-			messages.append(text)
+			messages.append((text, msg.type))
 			num -= 1
 			if num <= 0:
 				break

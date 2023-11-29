@@ -1,5 +1,6 @@
 from entity import Entity
 from utils import *
+from const import *
 
 class Player(Entity):
 	
@@ -15,6 +16,11 @@ class Player(Entity):
 		self.xp_level = 1
 		self.regen_tick = 0
 		self.fov = set()
+		self.energy_used = 0
+		
+	def use_energy(self, amount):
+		super().use_energy(amount)
+		self.energy_used += amount
 		
 	def is_player(self):
 		return True
@@ -66,6 +72,22 @@ class Player(Entity):
 		self.fov.clear()
 		self.calc_fov()
 		
+	def descend(self):
+		g = self.g
+		board = g.get_board()
+		tile = board.get_tile(self.pos)
+		if not tile.stair:
+			self.add_msg("You can't go down there.")
+			return
+		
+	def take_damage(self, dam):
+		if dam > 0:
+			self.set_hp(self.HP - dam)
+			if 0 < self.HP <= self.MAX_HP // 5:
+				self.add_msg(f"***LOW HP WARNING***", "bad")
+			if self.HP <= 0:
+				self.add_msg("You have died...", "bad")
+				
 	def attack_pos(self, pos):
 		g = self.g
 		if (mon := g.monster_at(pos)) is None:
@@ -84,26 +106,30 @@ class Player(Entity):
 		evasion = mon.calc_evasion()
 		self.add_msg(f"To-hit: {gauss_roll_prob(mod, evasion):.2f}%")
 		if roll >= evasion:
-			if sneak_attack:
-				self.add_msg(f"You catch {mon.get_name()} off-guard!")
-			self.add_msg(f"You hit {mon.get_name()}.")
 			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
 			damage = max(damage, 1)
+			
 			if sneak_attack:
+				self.add_msg(f"You catch {mon.get_name()} off-guard!", "good")
 				damage += dice(1, 6)
+			
+			self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
+			
 			mon.take_damage(damage)
-			if not mon.is_alive():
-				self.add_msg(f"{mon.get_name(True)} dies!")
-			else:
+			if mon.is_alive():
 				self.add_msg(f"It has {mon.HP}/{mon.MAX_HP}.")
+			else:
+				pass
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
 		
+		self.use_energy(100)
 		mon.alerted()
 		return True
 		
 	def move_dir(self, dx, dy):
-		if super().move_dir(dx, dy):	
+		if super().move_dir(dx, dy):
+			self.use_energy(100)	
 			return True
 		g = self.g
 		pos = self.pos	
@@ -113,7 +139,9 @@ class Player(Entity):
 		return False
 	
 	def do_turn(self):
-		self.regen_tick += self.regen_rate()
+		subt = self.energy_used / 100
+		self.energy_used = 0
+		self.regen_tick += self.regen_rate() * subt
 		while self.regen_tick >= 1:
 			self.regen_tick -= 1
 			self.heal(1)
