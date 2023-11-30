@@ -3,6 +3,7 @@ from board import Board
 from entity import Entity
 from monster import Monster
 from player import Player
+from event_bus import EventBus
 from const import *
 from messages import MessageLog
 
@@ -14,12 +15,14 @@ class Game:
 	def __init__(self):
 		self._board = Board(50, 18)
 		self._player = Player()
+		self._event_bus = EventBus()
 		self.screen = None
 		self.monsters = []
 		self.msg_log = MessageLog(MESSAGE_LOG_CAPACITY)
 		self.window_init = True
 		self.mon_types = {}
 		self.level = 1
+		self.subtick_timer = 0
 		
 	def check_mon_type(self, typ):
 		if typ not in self.mon_types:
@@ -81,6 +84,7 @@ class Game:
 			
 		num_monsters = rng(4, 6)
 		num_monsters += rng(0, round(self.level ** 0.6))
+		
 		for _ in range(num_monsters):
 			typ = random.choice(eligible_types)
 			self.place_monster(typ.id)
@@ -174,6 +178,9 @@ class Game:
 	def get_player(self):
 		return self._player
 		
+	def get_event_bus(self):
+		return self._event_bus
+		
 	def do_turn(self):
 		board = self.get_board()
 		player = self.get_player()
@@ -181,13 +188,18 @@ class Game:
 		
 		if used <= 0:
 			return
-		player.do_turn()
 		self.refresh_mon_pos_cache()
+		player.do_turn()
 		
+		self.subtick_timer += used
 		player.energy += used	
-		
 		for m in self.monsters:		
 			m.energy += used
+			
+		while self.subtick_timer >= 100:
+			self.subtick_timer -= 100
+			for m in self.monsters:
+				m.tick()
 			
 		remaining = self.monsters.copy()
 		
@@ -195,7 +207,6 @@ class Game:
 			nextremain = []
 			for m in remaining:
 				if not m.is_alive():
-					
 					continue
 				if m.energy <= 0:
 					continue

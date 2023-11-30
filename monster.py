@@ -118,23 +118,27 @@ class Monster(Entity):
 		
 	def process_state(self):	
 		g = self.g
-		board = g.get_board()
 		player = g.get_player()
 		
-		match self.state:
-			case "IDLE":
-				roll = gauss_roll((player.DEX-10)/2)
-				perception = 10 + (self.WIS-10)/2
-				if self.sees(player) and roll < perception:
-					self.awareness += 1 + perception - roll
-					if self.awareness >= random.uniform(1, 5):
-						self.alerted()
-						self.target_entity(player)
-				else:
-					self.awareness = max(self.awareness - 1, 0)			
+		match self.state:			
 			case "TRACKING":
 				if self.patience > 0:
 					self.patience -= 1
+					
+	def tick(self):
+		g = self.g
+		player = g.get_player()
+		
+		roll = gauss_roll((player.DEX-10)/2)
+		perception = 10 + (self.WIS-10)/2
+		
+		if self.sees(player) and roll < perception:
+			self.awareness += 1 + perception - roll
+			if self.awareness >= random.uniform(2, 6):
+				self.alerted()
+				self.target_entity(player)
+		else:
+			self.awareness = max(self.awareness - 1, 0)	
 		
 	def do_turn(self):
 		assert self.energy > 0
@@ -145,6 +149,20 @@ class Monster(Entity):
 		if self.energy == old:
 			self.use_energy(100)
 		
+	def sees(self, other):
+		if not super().sees(other):
+			return False
+			
+		#Blindaight bypasses invisibility
+		if (sight := self.type.blindsight):
+			range = sight.range
+			if self.distance(other) <= range:
+				return True
+			elif sight.blind_beyond:
+				return False
+		
+		#TODO: Invisibility check
+		return True
 		
 	def set_rand_target(self):
 		g = self.g
@@ -183,7 +201,7 @@ class Monster(Entity):
 		if dy != 0:
 			dy //= abs(dy)
 			
-		has_los = self.sees(target)
+		has_los = self.sees_pos(target)
 				
 		d = abs(delta)			
 		move_x = x_in_y(d.x, d.x + d.y) #Randomize, weighted by the x and y difference to the target
@@ -343,8 +361,8 @@ class Monster(Entity):
 		
 		match self.state:
 			case "IDLE":
-				self.idle()
-				
+				if not one_in(4):
+					self.idle()				
 			case "AWARE":	
 				if self.sees(player):
 					grouped = False
@@ -364,7 +382,6 @@ class Monster(Entity):
 					self.patience = round(patience * random.triangular(0.8, 1.2))
 				
 			case "TRACKING":
-				
 				if self.target_pos == self.pos:
 					player_stealth_roll = gauss_roll((player.DEX-10)/2)
 					perception_roll = gauss_roll((self.WIS-10)/2)

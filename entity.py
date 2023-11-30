@@ -81,15 +81,15 @@ class Entity(ABC):
 			return self.pos.distance(other)
 		return self.pos.distance(other.pos)
 		
-	def sees(self, other):
+	def sees_pos(self, pos):
 		board = self.g.get_board()
-		if isinstance(other, Point):
-			return board.has_line_of_sight(self.pos, other)
-			
+		return board.has_line_of_sight(self.pos, pos)
+		
+	def sees(self, other):	
 		if self is other:
 			return True
 		
-		return board.has_line_of_sight(self.pos, other.pos)
+		return self.sees_pos(other.pos)
 			
 	def has_clear_path(self, pos):
 		board = self.g.get_board()

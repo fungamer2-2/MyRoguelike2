@@ -17,6 +17,7 @@ class MessageLog:
 		if typ not in MSG_TYPES:
 			raise ValueError(f"invalid message type {typ!r}")
 		
+		msg = str(msg)
 		combine = False
 		if self.msgs:
 			last = self.msgs[-1]

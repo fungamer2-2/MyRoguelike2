@@ -6,11 +6,11 @@ class Player(Entity):
 	
 	def __init__(self):
 		super().__init__()
-		self.STR = gen_stat()
-		self.DEX = gen_stat()
-		self.CON = gen_stat()
-		self.INT = gen_stat()
-		self.WIS = gen_stat()
+		self.STR = gen_stat() + 1
+		self.DEX = gen_stat() + 1
+		self.CON = gen_stat() + 1
+		self.INT = gen_stat() + 1
+		self.WIS = gen_stat() + 1
 		self.MAX_HP = 10
 		self.xp = 0
 		self.xp_level = 1
@@ -45,7 +45,19 @@ class Player(Entity):
 			return other in self.fov
 		if self is other:
 			return True
+		
 		return other.pos in self.fov
+		
+	def visible_monsters(self):
+		g = self.g
+		if len(g.monsters) < len(self.fov):
+			for m in g.monsters:
+				if self.sees(m):
+					yield m
+		else:
+			for pos in self.fov:
+				if (m := g.monster_at(pos)):
+					yield m
 		
 	def get_name(self, capitalize=False):
 		return "You" if capitalize else "you"
@@ -119,11 +131,12 @@ class Player(Entity):
 			if mon.is_alive():
 				self.add_msg(f"It has {mon.HP}/{mon.MAX_HP}.")
 			else:
-				pass
+				g.get_event_bus().notify("kills_monster", monster=mon)
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
 		
 		self.use_energy(100)
+		
 		mon.alerted()
 		return True
 		
@@ -145,3 +158,5 @@ class Player(Entity):
 		while self.regen_tick >= 1:
 			self.regen_tick -= 1
 			self.heal(1)
+			
+		

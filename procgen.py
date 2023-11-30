@@ -91,7 +91,7 @@ def find_disconnected_zones(grid):
 		zones.append(curr)
 	
 	return zones
-		
+	
 def procgen(board):
 	width = board.width
 	height = board.height

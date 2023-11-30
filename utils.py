@@ -79,7 +79,7 @@ class Point:
 		self.y = other.y
 		
 	def __repr__(self):
-		return f"Point({self.x}, {self.y})"
+		return f"({self.x}, {self.y})"
 		
 	def __add__(self, other):
 		if isinstance(other, Point):
