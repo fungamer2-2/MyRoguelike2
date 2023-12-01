@@ -52,6 +52,9 @@ class Monster(Entity):
 	def get_speed(self):
 		return self.type.speed
 		
+	def get_diff_level(self):
+		return self.type.diff
+		
 	def use_move_energy(self):
 		cost = div_rand(10000, self.get_speed())
 		self.use_energy(cost)
@@ -68,7 +71,17 @@ class Monster(Entity):
 			return p == pos or board.passable(p)
 		
 		def cost_func(p):
-			return 1 + 2*(g.monster_at(p) is not None)
+			cost = 1
+			if (c := g.monster_at(p)):
+				cost += 2
+			if self.pack:
+				num = 0
+				for m in g.monsters_in_radius(p, 1):
+					if self.is_ally(m):
+						num += 1
+				cost /= num + 1
+			
+			return cost
 		
 		path = find_path(board, self.pos, pos, passable_func, cost_func)
 		
@@ -129,16 +142,17 @@ class Monster(Entity):
 		g = self.g
 		player = g.get_player()
 		
-		roll = gauss_roll((player.DEX-10)/2)
-		perception = 10 + (self.WIS-10)/2
-		
-		if self.sees(player) and roll < perception:
-			self.awareness += 1 + perception - roll
-			if self.awareness >= random.uniform(2, 6):
-				self.alerted()
-				self.target_entity(player)
-		else:
-			self.awareness = max(self.awareness - 1, 0)	
+		if self.state == "IDLE":
+			roll = gauss_roll((player.DEX-10)/2)
+			perception = 10 + (self.WIS-10)/2
+			
+			if self.sees(player) and roll < perception:
+				self.awareness += 1 + perception - roll
+				if self.awareness >= random.uniform(2, 6):
+					self.alerted()
+					self.target_entity(player)
+			else:
+				self.awareness = max(self.awareness - 1, 0)	
 		
 	def do_turn(self):
 		assert self.energy > 0
@@ -148,6 +162,14 @@ class Monster(Entity):
 		self.move()
 		if self.energy == old:
 			self.use_energy(100)
+			
+	def sees_pos(self, pos):
+		if super().sees_pos(pos):
+			if (sight := self.type.blindsight):
+				if sight.blind_beyond and self.distance(pos) > sight.range:
+					return False
+			return True
+		return False
 		
 	def sees(self, other):
 		if not super().sees(other):
@@ -261,8 +283,9 @@ class Monster(Entity):
 		y = 0
 		num = 0
 		
-		#Each membor of the pack tries to move toward the average of its nearby members
-		for mon in g.monsters_in_radius(self.pos, 3):	
+		return False
+		#Each member of the pack tries to move toward the average of its nearby members
+		for mon in g.monsters_in_radius(self.pos, 5):	
 			if not self.sees(mon):
 				continue
 			if not self.is_ally(mon):
@@ -306,7 +329,7 @@ class Monster(Entity):
 			if self.pack: #If we alert one member of the pack, alert the entire pack.
 				for mon in g.monsters_in_radius(self.pos, 7):	
 					if self.is_ally(mon):
-						mon.state == "AWARE"
+						mon.state = "AWARE"
 			if self.state == "IDLE":
 				self.state = "AWARE"
 				
@@ -366,9 +389,6 @@ class Monster(Entity):
 			case "AWARE":	
 				if self.sees(player):
 					grouped = False
-					if self.pack and self.distance(player) > 2:
-						if x_in_y(2, 5):	
-							grouped = self.set_pack_target_pos()
 					if not grouped:
 						self.target_entity(player)
 						

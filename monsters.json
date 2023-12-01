@@ -13,10 +13,9 @@
 		"to_hit": 0,
 		"base_damage": "1",
 		"level": 1,
+		"diff": 1,
 		"speed": 125,
-		"blindsight": {
-			"range": 12
-		}
+		"blindsight": { "range": 12 }
 	},
 	{
 		"id": "jackal",
@@ -31,6 +30,7 @@
 		"HP": 4,
 		"to_hit": 0,
 		"level": 2,
+		"diff": 1,
 		"speed": 135,
 		"base_damage": "1d4",
 		"pack_travel": true
@@ -48,6 +48,7 @@
 		"HP": 2,
 		"to_hit": 0,
 		"level": 1,
+		"diff": 1,
 		"speed": 30,
 		"base_damage": "1"
 	}

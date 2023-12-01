@@ -6,10 +6,9 @@ def main():
 	g.init_game()
 	player = g.get_player()
 	while player.is_alive():
-		char = g.get_char()
-		if g.process_key_input(char):
+		if g.process_input():
 			g.do_turn()
-		g.draw_board()
+		
 	g.game_over()
 		
 try:

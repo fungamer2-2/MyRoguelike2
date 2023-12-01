@@ -17,6 +17,10 @@ class Player(Entity):
 		self.regen_tick = 0
 		self.fov = set()
 		self.energy_used = 0
+		self.is_resting = False
+		
+	def interrupt(self):
+		self.is_resting = False
 		
 	def use_energy(self, amount):
 		super().use_energy(amount)
@@ -31,10 +35,13 @@ class Player(Entity):
 		
 	def gain_xp(self, amount):
 		self.xp += amount
+		old_level = self.xp_level
 		while self.xp >= self.xp_to_next_level():
 			self.xp -= self.xp_to_next_level()
 			self.xp_level += 1	
-		
+		if old_level != self.xp_level:
+			self.recalc_max_hp()
+			
 	def calc_fov(self):
 		g = self.g
 		board = g.get_board()
@@ -67,34 +74,52 @@ class Player(Entity):
 		
 	def regen_rate(self):
 		mult = self.CON / 10
-		return 0.05 * mult
+		return 0.035 * mult
 		
 	def recalc_max_hp(self):
-		level_mod = 5 * (level - 1)
+		level_mod = 5 * (self.xp_level - 1)
 		level_mod *= self.CON / 10
-		self.MAX_HP = 10 + level_mod
+		self.MAX_HP = round(10 + level_mod)
 		
 	def move_to(self, pos):
 		if super().move_to(pos):
-			self.on_move()
+			self.fov.clear()
+			self.calc_fov()
 			return True
 		return False
 		
-	def on_move(self):
-		self.fov.clear()
-		self.calc_fov()
+	def on_move(self, oldpos):
+		g = self.g
+		board = g.get_board()
+		prev_adj = [mon for mon in g.monsters_in_radius(oldpos, 1)]
 		
+		for mon in prev_adj:
+			if not mon.state == "AWARE":
+				continue
+			if self.distance(mon) >= 2 and mon.sees(self):
+				player_roll = random.triangular(0, self.get_speed())
+				monster_roll = random.triangular(0, mon.get_speed())
+				if monster_roll >= player_roll and one_in(2):
+					self.add_msg(f"{mon.get_name(True)} makes an opportunity attack as you move away!", "warning")
+					oldenergy = mon.energy
+					mon.attack_pos(self.pos)
+					mon.energy = oldenergy
+					
 	def descend(self):
 		g = self.g
 		board = g.get_board()
 		tile = board.get_tile(self.pos)
 		if not tile.stair:
 			self.add_msg("You can't go down there.")
-			return
+			return False
+		
+		self.add_msg("You descend the stairs to the next level.")
+		g.next_level()
 		
 	def take_damage(self, dam):
 		if dam > 0:
 			self.set_hp(self.HP - dam)
+			self.interrupt()
 			if 0 < self.HP <= self.MAX_HP // 5:
 				self.add_msg(f"***LOW HP WARNING***", "bad")
 			if self.HP <= 0:
@@ -131,7 +156,7 @@ class Player(Entity):
 			if mon.is_alive():
 				self.add_msg(f"It has {mon.HP}/{mon.MAX_HP}.")
 			else:
-				g.get_event_bus().notify("kills_monster", monster=mon)
+				self.on_defeat_monster(mon)
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
 		
@@ -140,9 +165,22 @@ class Player(Entity):
 		mon.alerted()
 		return True
 		
+	def on_defeat_monster(self, mon):
+		g = self.g
+		self.add_msg(f"You have defeated yet another monster!", "good")
+		xp_gain = 10 * mon.get_diff_level()**1.5
+		xp_gain = round(xp_gain/10)*10
+		self.gain_xp(xp_gain)
+		
+		if len(g.get_monsters()) <= 0:
+			g.place_stairs()
+			self.add_msg("The stairs proceeding downward to the next level begin to open up...")
+			
 	def move_dir(self, dx, dy):
+		oldpos = self.pos.copy()
 		if super().move_dir(dx, dy):
-			self.use_energy(100)	
+			self.use_energy(div_rand(10000, self.get_speed()))
+			self.on_move(oldpos)	
 			return True
 		g = self.g
 		pos = self.pos	

@@ -3,19 +3,17 @@ from board import Board
 from entity import Entity
 from monster import Monster
 from player import Player
-from event_bus import EventBus
 from const import *
 from messages import MessageLog
 
 from utils import *	
-import curses, textwrap
+import curses, textwrap, math
 
 class Game:
 	
 	def __init__(self):
 		self._board = Board(50, 18)
 		self._player = Player()
-		self._event_bus = EventBus()
 		self.screen = None
 		self.monsters = []
 		self.msg_log = MessageLog(MESSAGE_LOG_CAPACITY)
@@ -23,6 +21,7 @@ class Game:
 		self.mon_types = {}
 		self.level = 1
 		self.subtick_timer = 0
+		self.tick = 0
 		
 	def check_mon_type(self, typ):
 		if typ not in self.mon_types:
@@ -60,10 +59,13 @@ class Game:
 		Entity.g = self
 		self.load_monsters()
 		
-		self.generate_level()
-			
+		self.generate_level()		
 		self.draw_board()
 		
+	def next_level(self):
+		self.level += 1
+		self.generate_level()		
+		self.draw_board()
 		
 	def generate_level(self):
 		board = self.get_board()
@@ -82,8 +84,8 @@ class Game:
 				eligible_types.append(typ)
 		assert len(eligible_types) > 0
 			
-		num_monsters = rng(4, 6)
-		num_monsters += rng(0, round(self.level ** 0.6))
+		num_monsters = rng(6, 10)
+		num_monsters += rng(0, round((self.level-1)**(2/3)))
 		
 		for _ in range(num_monsters):
 			typ = random.choice(eligible_types)
@@ -171,6 +173,9 @@ class Game:
 		for pos in board.points_in_radius(pos, radius):
 			if (mon := self.monster_at(pos)) and not isinstance(mon, Player):
 				yield mon
+				
+	def once_every_num_turns(self, num):
+		return self.tick % num == 0
 			
 	def get_board(self):
 		return self._board
@@ -178,8 +183,8 @@ class Game:
 	def get_player(self):
 		return self._player
 		
-	def get_event_bus(self):
-		return self._event_bus
+	def get_monsters(self):
+		return [mon for mon in self.monsters if mon.is_alive()]	
 		
 	def do_turn(self):
 		board = self.get_board()
@@ -198,6 +203,7 @@ class Game:
 			
 		while self.subtick_timer >= 100:
 			self.subtick_timer -= 100
+			self.tick += 1
 			for m in self.monsters:
 				m.tick()
 			
@@ -215,9 +221,8 @@ class Game:
 					nextremain.append(m)
 			remaining = nextremain
 		
-		self.remove_dead()
-		
-		
+		self.remove_dead()	
+			
 	def refresh_mon_pos_cache(self):
 		board = self.get_board()
 		player = self.get_player()
@@ -229,10 +234,18 @@ class Game:
 				board.set_collision_cache(m.pos, m)
 		
 	def remove_dead(self):
-		board = self.get_board()
 		for m in reversed(self.monsters):
 			if not m.is_alive():
 				self.monsters.remove(m)
+				
+	def place_stairs(self):
+		board = self.get_board()
+		while True:
+			pos = board.random_pos()
+			if board.passable(pos):
+				tile = board.get_tile(pos)
+				tile.stair = True
+				return
 			
 	def get_char(self, wait=True):
 		screen = self.screen
@@ -273,7 +286,7 @@ class Game:
 		for pos in board.iter_square(0, 0, width-1, height-1):
 			tile = board.get_tile(pos)
 			if not tile.revealed:
-				symbol = " "
+				continue
 			elif tile.wall:
 				symbol = WALL_SYMBOL
 			elif tile.stair:
@@ -290,7 +303,7 @@ class Game:
 		player = self.get_player()
 		
 		bar = "HP: " + display_bar(player.HP, player.MAX_HP, 20)			
-		p = f"({player.HP}/{player.MAX_HP})".ljust(12)
+		p = f"({player.HP}/{player.MAX_HP})"
 		bar += " " + p
 		
 		if player.HP <= player.MAX_HP // 5:
@@ -299,27 +312,35 @@ class Game:
 			color = COLOR_YELLOW
 		else:
 			color = COLOR_GREEN
+			
 		self.draw_string(0, 0, bar, curses.color_pair(color))
+		
+		xp_needed = player.xp_to_next_level()
+		xp_curr = player.xp
+		
+		xp_str = f"XP Level: {player.xp_level} - {xp_curr}/{xp_needed}"
+		self.draw_string(1, 0, xp_str)
+		
 		
 		strings = [
 			f"STR {player.STR}",
 			f"DEX {player.DEX}",
 			f"CON {player.CON}"
 		]
-		for i in range(len(strings)):
-			padded = strings[i].ljust(6)
-			self.draw_string(i, width + 6, padded)	
+		for i, string in enumerate(strings):
+			self.draw_string(i, width + 6, string)	
 
 	def draw_monsters(self, offset_y):
 		player = self.get_player()
 		for m in self.monsters:
 			pos = m.pos
 			color = 0
-			symbol = " "
-			if player.sees(m):
-				symbol = m.symbol 
-				if m.state == "IDLE":
-					color = curses.A_REVERSE
+			
+			if not player.sees(m):
+				continue
+			symbol = m.symbol 
+			if m.state == "IDLE":
+				color = curses.A_REVERSE
 			
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color)	
 		
@@ -352,8 +373,7 @@ class Game:
 		for i in range(len(displayed)):
 			msg, type = displayed[i]
 			color = curses.color_pair(MSG_TYPES[type])
-			padded = msg.ljust(cols)
-			self.draw_string(y + i, 0, padded, color)			
+			self.draw_string(y + i, 0, msg, color)			
 
 	def reveal_seen_tiles(self):
 		board = self.get_board()
@@ -363,7 +383,9 @@ class Game:
 			
 	def draw_board(self):
 		screen = self.screen
-		offset_y = 1
+		screen.erase()
+		offset_y = 2
+		
 		
 		self.reveal_seen_tiles()
 		self.draw_walls(offset_y)
@@ -372,9 +394,30 @@ class Game:
 		self.draw_messages(offset_y)
 		screen.move(20 + offset_y, 0)
 		screen.refresh()
-	
-	def process_key_input(self, char):
+		
+	def maybe_refresh(self):
 		player = self.get_player()
+		
+		if not player.is_resting or self.once_every_num_turns(5):
+			self.draw_board()
+	
+	def process_input(self):
+		self.maybe_refresh()
+				
+		player = self.get_player()
+		
+		if player.is_resting:
+			if player.HP >= player.MAX_HP:
+				self.add_message("HP restored.", "good")
+				player.is_resting = False
+			else:
+				player.use_energy(100)
+			return True
+		
+		char = self.get_char()
+		
+		
+		
 		if char == "w":
 			return player.move_dir(0, -1)
 		if char == "s":
@@ -383,6 +426,13 @@ class Game:
 			return player.move_dir(-1, 0)
 		elif char == "d":
 			return player.move_dir(1, 0)
+		elif char == ">":
+			return player.descend()
+		elif char == "r":
+			if player.HP < player.MAX_HP:
+				self.add_message("You begin resting.")
+				player.is_resting = True
+				return True
 		elif char == " ":
 			player.use_energy(100)
 			return True
@@ -391,7 +441,7 @@ class Game:
 		
 	def draw_game_over(self):
 		screen = self.screen
-		gameover_win = screen.subwin(18, 50, 1, 0)
+		gameover_win = screen.subwin(18, 50, 2, 0)
 		
 		def draw_center_text(y, txt):
 			h, w = gameover_win.getmaxyx()

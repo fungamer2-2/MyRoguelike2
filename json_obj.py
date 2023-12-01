@@ -38,26 +38,60 @@ def parse_dice(string):
 	mod = int(mod)
 	
 	return (num, sides, mod)
+	
+def _check_type(d, key, typ):
+	if typ is not None:
+		val = d[key]
+		if isinstance(typ, (list, tuple)):
+			types = list(typ)
+		else:
+			types = [typ]
+		if float in types:
+			types.append(int)
+		
+		if len(types) > 1:
+			types = tuple(types)
+		else:
+			types = types[0]
+		
+		try:
+			isinstance(val, types)
+		except:
+			
+			raise Exception(str(types))
+		if not isinstance(val, types):
+			typ_obtained = type(val).__name__
+			
+			if len(types) == 1:
+				typ_expected = typ.__name__
+			else:
+				typ_expected = ", ".join(t.__name__ for t in types)
+				typ_expected = f"({typ_expected})"
+			raise TypeError(f"JSON field {key!r} expected type {typ_expected}, but got type {typ_obtained}")
+				
 
 class JSONObject:
 	
 	def __init__(self):
 		self._attrs = {}
-		
+			
 	def __getattr__(self, key):
 		if key not in self._attrs:
 			raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {key!r}") 
 		return self._attrs[key]
 	
-	def get_optional(self, d, key, default, converter=None):
+	def get_optional(self, d, key, default, typ=None, converter=None):	
+		if key in d:
+			_check_type(d, key, typ)
 		val = d.get(key, default)
 		if converter and key in d:
 			val = converter(val)
 		return val
 		
-	def get_required(self, d, key, converter=None):
+	def get_required(self, d, key, typ=None, converter=None):
 		if key not in d:
 			raise KeyError(f"JSON object missing required key {key!r}")
+		_check_type(d, key, typ)
 		val = d[key]
 		if converter:
 			val = converter(val)
@@ -70,11 +104,11 @@ class JSONObject:
 		obj = typ.load(self._attrs[key])
 		self._attrs[key] = obj
 	
-	def load_optional(self, d, key, default, converter=None):	
-		self.set_field(key, self.get_optional(d, key, default, converter))
+	def load_optional(self, d, key, default, typ=None, converter=None):	
+		self.set_field(key, self.get_optional(d, key, default, typ, converter))
 	
-	def load_required(self, d, key, converter=None):
-		self._attrs[key] = self.get_required(d, key, converter)
+	def load_required(self, d, key, typ=None, converter=None):
+		self._attrs[key] = self.get_required(d, key, typ, converter)
 		
 class Blindsight(JSONObject):
 	
@@ -91,23 +125,24 @@ class MonsterType(JSONObject):
 	@classmethod
 	def load(cls, d):
 		obj = cls()
-		obj.load_required(d, "id")
-		obj.load_required(d, "name")
-		obj.load_required(d, "symbol")
-		obj.load_required(d, "STR")
-		obj.load_required(d, "DEX")
-		obj.load_required(d, "CON")
-		obj.load_required(d, "INT")
-		obj.load_required(d, "WIS")
-		obj.load_required(d, "HP")
-		obj.load_required(d, "level")
-		obj.load_required(d, "to_hit")
-		obj.load_optional(d, "speed", 100)
-		dam = obj.get_optional(d, "base_damage", "0")
+		obj.load_required(d, "id", str)
+		obj.load_required(d, "name", str)
+		obj.load_required(d, "symbol", str)
+		obj.load_required(d, "STR", int)
+		obj.load_required(d, "DEX", int)
+		obj.load_required(d, "CON", int)
+		obj.load_required(d, "INT", int)
+		obj.load_required(d, "WIS", int)
+		obj.load_required(d, "HP", int)
+		obj.load_required(d, "level", int)
+		obj.load_required(d, "diff", int)
+		obj.load_required(d, "to_hit", int)
+		obj.load_optional(d, "speed", 100, int)
+		dam = obj.get_optional(d, "base_damage", "0", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		
-		obj.load_optional(d, "pack_travel", False)
-		obj.load_optional(d, "blindsight", False)
+		obj.load_optional(d, "pack_travel", False, bool)
+		obj.load_optional(d, "blindsight", False, (bool, dict))
 		
 		if obj.blindsight != False:
 			if type(obj.blindsight) != dict:

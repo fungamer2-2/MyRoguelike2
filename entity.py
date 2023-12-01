@@ -30,6 +30,9 @@ class Entity(ABC):
 			dex = 0
 		return 10 + (dex - 10) / 2
 	
+	def get_speed(self):
+		return 100
+	
 	@abstractmethod
 	def get_name(self, capitalize=False):
 		return "Unknown Entity"
