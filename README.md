@@ -1,5 +1,5 @@
 # MyRoguelike2-
-**NOTE: This is still a work in progress and not a complete game yet**
+**NOTE: This is still a work in progress**
 
 Another roguelike in Python.
 
