@@ -1,4 +1,4 @@
-# MyRoguelike2-
+# MyRoguelike2
 **NOTE: This is still a work in progress**
 
 Game version: `0.1.0`<br />
