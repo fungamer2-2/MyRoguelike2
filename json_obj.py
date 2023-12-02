@@ -138,6 +138,7 @@ class MonsterType(JSONObject):
 		obj.load_required(d, "diff", int)
 		obj.load_required(d, "to_hit", int)
 		obj.load_optional(d, "speed", 100, int)
+		obj.load_optional(d, "use_dex_melee", False, bool)
 		dam = obj.get_optional(d, "base_damage", "0", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		

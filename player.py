@@ -70,7 +70,9 @@ class Player(Entity):
 		return "You" if capitalize else "you"
 		
 	def calc_to_hit_bonus(self):
-		return (self.xp_level - 1) / 4
+		level_bonus = (self.xp_level - 1) / 4
+		stat_bonus = (self.STR - 10) / 2
+		return level_bonus + stat_bonus
 		
 	def regen_rate(self):
 		mult = self.CON / 10
@@ -123,8 +125,8 @@ class Player(Entity):
 			if 0 < self.HP <= self.MAX_HP // 5:
 				self.add_msg(f"***LOW HP WARNING***", "bad")
 			if self.HP <= 0:
-				self.add_msg("You have died...", "bad")
-				
+				self.add_msg("You have died...", "bad")			
+	
 	def attack_pos(self, pos):
 		g = self.g
 		if (mon := g.monster_at(pos)) is None:
@@ -133,7 +135,6 @@ class Player(Entity):
 		
 		sneak_attack = False
 		mod = self.calc_to_hit_bonus()
-		mod += (self.STR - 10) / 2
 		if mon.state != "AWARE":
 			mod += 5
 			if x_in_y(self.DEX, 30) and one_in(2):

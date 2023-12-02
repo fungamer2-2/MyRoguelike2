@@ -63,6 +63,9 @@ class Monster(Entity):
 		the = "The" if capitalize else "the"
 		return the + " " + self.name
 		
+	def set_state(self, state):
+		self.state = state
+		
 	def calc_path_to(self, pos):
 		g = self.g
 		board = g.get_board()
@@ -148,7 +151,7 @@ class Monster(Entity):
 			
 			if self.sees(player) and roll < perception:
 				self.awareness += 1 + perception - roll
-				if self.awareness >= random.uniform(2, 6):
+				if self.awareness >= random.uniform(1, 6):
 					self.alerted()
 					self.target_entity(player)
 			else:
@@ -329,24 +332,17 @@ class Monster(Entity):
 			if self.pack: #If we alert one member of the pack, alert the entire pack.
 				for mon in g.monsters_in_radius(self.pos, 7):	
 					if self.is_ally(mon):
-						mon.state = "AWARE"
+						mon.set_state("AWARE")
 			if self.state == "IDLE":
-				self.state = "AWARE"
+				self.set_state("AWARE")
 				
 	def move_dir(self, dx, dy):
 		if super().move_dir(dx, dy):
 			self.use_move_energy()
 			return True
 		return False
-			
-	def attack_pos(self, pos):
-		g = self.g
-		board = g.get_board()
-		if not (c := g.entity_at(pos)):
-			return False
 		
-		assert c.is_player() #TODO: Remove when it's possible for monsters to attack other monsters
-		
+	def get_to_hit_bonus(self):
 		mod = self.to_hit
 		
 		if self.pack:
@@ -360,12 +356,25 @@ class Monster(Entity):
 			if allies > 0: #Pack tactics gives a bonus to-hit if there are allies nearby
 				bonus = 2.5*allies
 				mod += bonus
-					
+				
+		return mod
+			
+	def attack_pos(self, pos):
+		g = self.g
+		board = g.get_board()
+		if not (c := g.entity_at(pos)):
+			return False
+		
+		assert c.is_player() #TODO: Remove when it's possible for monsters to attack other monsters
+		
+		mod = self.get_to_hit_bonus()
+		
 		roll = gauss_roll(mod)
 		self.add_msg(f"{roll} vs {c.calc_evasion()}")
 		if roll >= c.calc_evasion():
 			damage = self.damage.roll()
-			damage += div_rand(self.STR - 10, 2)
+			stat = self.DEX if self.type.use_dex_melee else self.STR
+			damage += div_rand(stat - 10, 2)
 			damage = max(damage, 1)
 			
 			msg_type = "bad" if c.is_player() else "neutral"
@@ -396,7 +405,7 @@ class Monster(Entity):
 						self.set_rand_target()
 					
 				else:
-					self.state = "TRACKING"
+					self.set_state("TRACKING")
 					self.target_entity(player)
 					patience = self.base_pursue_duration()	
 					self.patience = round(patience * random.triangular(0.8, 1.2))
@@ -409,9 +418,9 @@ class Monster(Entity):
 						self.set_target(player.pos)
 						
 				if self.sees(player):
-					self.state = "AWARE"
+					self.set_state("AWARE")
 				elif self.patience <= 0:
-					self.state = "IDLE"
+					self.set_state("IDLE")
 				
 		self.move_to_target()
 		
