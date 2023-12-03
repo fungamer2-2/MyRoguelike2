@@ -46,7 +46,7 @@ class Player(Entity):
 			self.recalc_max_hp()
 			self.add_msg(f"You have reached experience level {self.xp_level}!", "good")
 			for _ in range(num*2):
-				rand = rng(1, 4)
+				rand = rng(1, 6)
 				match rand:
 					case 1:
 						self.STR += 1
@@ -57,7 +57,7 @@ class Player(Entity):
 					case 3:
 						self.CON += 1
 						self.recalc_max_hp()
-						msg = "You feel your physical enendurance improve."
+						msg = "You feel your physical endurance improve."
 					case 4:
 						self.INT += 1
 						msg = "You feel more intelligent."
