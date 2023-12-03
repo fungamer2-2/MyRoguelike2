@@ -147,10 +147,14 @@ class Monster(Entity):
 		if self.state == "IDLE":
 			roll = gauss_roll((player.DEX-10)/2)
 			perception = 10 + (self.WIS-10)/2
+			sight = self.type.blindsight
+			if sight and self.distance(player) <= sight.range:
+				perception += 5
 			
-			if self.sees(player) and roll < perception:
+			auto_fail = one_in(100)
+			if self.sees(player) and (auto_fail or roll < perception):
 				margin = perception - roll
-				if x_in_y(1, 6 - margin):
+				if auto_fail or x_in_y(1, 6 - margin):
 					self.alerted()
 					self.target_entity(player)
 			

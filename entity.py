@@ -11,6 +11,7 @@ class Entity(ABC):
 		self.CON = 10
 		self.INT = 10
 		self.WIS = 10
+		self.CHA = 10
 		self.HP = self.MAX_HP = 10
 		self.pos = Point()
 		self.energy = 100

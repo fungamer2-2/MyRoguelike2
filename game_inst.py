@@ -491,7 +491,7 @@ class Game:
 		if monster.state == "IDLE":
 			info.add_line("It hasn't noticed your presence yet.")
 		if monster.pack:
-			info.add_line("This creature travels in packs and takes advantage of its nearby allies to ")
+			info.add_line("This creature travels in packs and takes advantage of its nearby allies to attack targets more easily.")
 		
 		mon_speed = monster.get_speed()
 		player_speed = player.get_speed()
