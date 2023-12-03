@@ -51,6 +51,8 @@ class Entity(ABC):
 	def can_move_to(self, pos):
 		g = self.g
 		board = g.get_board()
+		if pos == self.pos:
+			return True
 		return board.passable(pos) and not g.entity_at(pos)
 		
 	def move_to(self, pos):

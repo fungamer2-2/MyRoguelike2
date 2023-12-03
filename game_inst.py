@@ -91,13 +91,46 @@ class Game:
 				eligible_types.append(typ)
 		assert len(eligible_types) > 0
 			
-		num_monsters = rng(6, 10)
+		num_monsters = rng(5, 10)
 		num_monsters += rng(0, round((self.level-1)**(2/3)))
 		
-		for _ in range(num_monsters):
+		packs = 0
+		while num_monsters > 0:
 			typ = random.choice(eligible_types)
-			self.place_monster(typ.id)
+			if typ.pack_travel and x_in_y(self.level, self.level + 2) and one_in(6 + packs * 2):
+				pack_num = rng(2, 4)
+				if self.spawn_pack(typ.id, pack_num):
+					num_monsters -= rng(1, pack_num)
+					packs += 1	
+			else:
+				num_monsters -= 1
+				self.place_monster(typ.id)
 		
+	def spawn_pack(self, typ, num):
+		self.check_mon_type(typ)
+		board = self.get_board()
+		for tries in range(75):
+			pos = board.random_pos()
+			if board.passable(pos) and not self.entity_at(pos):
+				break
+		
+		candidates = []
+		for p in board.points_in_radius(pos, 4):
+			if not board.passable(p):
+				continue
+			if self.entity_at(p):
+				continue	
+			if board.has_line_of_sight(p, pos):
+				candidates.append(p)
+		if not candidates:
+			return False
+			
+		random.shuffle(candidates)
+		candidates.sort(key=lambda p: p.distance(pos))
+		
+		num = min(len(candidates), num)
+		for i in range(num):
+			self.place_monster_at(typ, candidates[i])
 		
 	def deinit_window(self):
 		if not self.window_init:
@@ -137,30 +170,14 @@ class Game:
 	def place_monster(self, typ_id):
 		typ = self.get_mon_type(typ_id)
 		board = self.get_board()
+			
+		for tries in range(150):
+			pos = board.random_pos()
+			if board.passable(pos) and not self.monster_at(pos):
+				break
+			
 		
-		found_pos = None
-		if typ.pack_travel and len(self.monsters) > 2 and not one_in(4):
-			pos = random.choice(self.monsters).pos
-			candidates = []
-			for p in board.points_in_radius(pos, 3):
-				if not board.has_line_of_sight(p, pos):
-					continue
-				if not self.monster_at(p):
-					if one_in(pos.distance(p)):
-						candidates.append(p)
-			if candidates:
-				found_pos = random.choice(candidates)	
-		
-		if not found_pos:	
-			for tries in range(150):
-				pos = board.random_pos()
-				if board.passable(pos) and not self.monster_at(pos):
-					found_pos = pos
-					break
-			if not found_pos:
-				return None
-		
-		return self.place_monster_at(typ_id, found_pos)
+		return self.place_monster_at(typ_id, pos)
 		
 	def load_monsters(self):
 		self.mon_types = load_monster_types()
@@ -330,7 +347,10 @@ class Game:
 		strings = [
 			f"STR {player.STR}",
 			f"DEX {player.DEX}",
-			f"CON {player.CON}"
+			f"CON {player.CON}",
+			f"INT {player.INT}",
+			f"WIS {player.WIS}",
+			f"CHA {player.CHA}"
 		]
 		for i, string in enumerate(strings):
 			self.draw_string(i, width + 6, string)	
@@ -486,7 +506,7 @@ class Game:
 		a_an = "an" if monster.name[0] in "aeiou" else "a"
 		
 		info = PopupInfo(self)
-		info.add_line(f"This is a {a_an} {monster.name}.")
+		info.add_line(f"{monster.symbol} - {monster.name}")
 		info.add_line()
 		if monster.state == "IDLE":
 			info.add_line("It hasn't noticed your presence yet.")
@@ -508,8 +528,8 @@ class Game:
 		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), monster.calc_evasion())
 		monster_to_hit = gauss_roll_prob(monster.get_to_hit_bonus(), player.calc_evasion())
 		
-		info.add_line(f"Your attacks have a {player_to_hit:.2f}% probability to hit this creature.")
-		info.add_line(f"Its attacks have a {monster_to_hit:.2f}% probability to hit you.")
+		info.add_line(f"Your attacks have a {player_to_hit:.1f}% probability to hit this creature.")
+		info.add_line(f"Its attacks have a {monster_to_hit:.1f}% probability to hit you.")
 		info.show()
 		self.getch()
 		

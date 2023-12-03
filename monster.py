@@ -42,11 +42,15 @@ class Monster(Entity):
 		m.CON = typ.CON
 		m.INT = typ.INT
 		m.WIS = typ.WIS
+		m.CHA = typ.CHA
 		m.HP = m.MAX_HP = typ.HP
 		m.pack = typ.pack_travel
 		m.to_hit = typ.to_hit
 		m.damage = typ.base_damage
 		return m
+		
+	def has_flag(self, name):
+		return name in self.type.flags
 		
 	def get_speed(self):
 		return self.type.speed
@@ -79,7 +83,7 @@ class Monster(Entity):
 			if self.pack:
 				num = 0
 				for m in g.monsters_in_radius(p, 1):
-					if self.is_ally(m):
+					if self is not m and self.is_ally(m):
 						num += 1
 				cost /= num + 1
 			
@@ -146,17 +150,28 @@ class Monster(Entity):
 		
 		if self.state == "IDLE":
 			roll = gauss_roll((player.DEX-10)/2)
-			perception = 10 + (self.WIS-10)/2
+			per_mod = (self.WIS-10)/2
+			perception = 10 + per_mod
 			sight = self.type.blindsight
 			if sight and self.distance(player) <= sight.range:
-				perception += 5
+				perception += 4
 			
-			auto_fail = one_in(100)
-			if self.sees(player) and (auto_fail or roll < perception):
-				margin = perception - roll
-				if auto_fail or x_in_y(1, 6 - margin):
-					self.alerted()
-					self.target_entity(player)
+			alert = False
+			if self.sees(player):
+				auto_fail = one_in(100)
+				if auto_fail or roll < perception:
+					margin = perception - roll
+					if auto_fail or x_in_y(1, 6 - margin):
+						alert = True
+				elif one_in(3) and self.has_flag("KEEN_SMELL"):
+					mod = per_mod - self.distance(player) / 4
+					if gauss_roll(mod) >= 10:
+						alert = True
+						
+			if alert:
+				self.alerted()
+				self.target_entity(player)
+				
 			
 	def do_turn(self):
 		assert self.energy > 0
@@ -165,7 +180,7 @@ class Monster(Entity):
 		old = self.energy
 		self.move()
 		if self.energy == old:
-			self.use_energy(100)
+			self.energy = 0
 			
 	def sees_pos(self, pos):
 		if super().sees_pos(pos):
@@ -289,7 +304,9 @@ class Monster(Entity):
 		
 		return False
 		#Each member of the pack tries to move toward the average of its nearby members
-		for mon in g.monsters_in_radius(self.pos, 5):	
+		for mon in g.monsters_in_radius(self.pos, 5):
+			if self is mon:
+				continue
 			if not self.sees(mon):
 				continue
 			if not self.is_ally(mon):
@@ -359,6 +376,8 @@ class Monster(Entity):
 		if self.pack:
 			allies = 0
 			for p in board.points_in_radius(self.pos, 1):
+				if p == self.pos:
+					continue
 				mon = g.monster_at(p)
 				if mon and self.is_ally(mon):
 					allies += 1
@@ -401,7 +420,17 @@ class Monster(Entity):
 			damage += div_rand(stat - 10, 2)
 			damage = max(damage, 1)	
 			msg_type = "bad" if c.is_player() else "neutral"
-			self.add_msg_if_u_see(self, f"{self.get_name(True)} attacks {c.get_name()}.", msg_type)
+			
+			monster_name = self.get_name()
+			target_name = c.get_name()
+			msg = self.type.attack_msg
+			msg = msg.replace("<monster>", monster_name)
+			msg = msg.replace("<target>", target_name)
+			
+			if msg.startswith(monster_name):
+				msg = msg.capitalize()
+			
+			self.add_msg_if_u_see(self, f"{msg}.", msg_type)
 			c.take_damage(damage)
 		else:
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {c.get_name()}.")

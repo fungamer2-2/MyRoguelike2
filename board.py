@@ -181,8 +181,6 @@ class Board:
 					
 	def points_in_radius(self, center, radius):
 		for pos in self.iter_square(center.x-radius, center.y-radius, center.x+radius, center.y+radius):
-			if pos == center:
-				continue
 			if pos.distance(center) <= radius:
 				yield pos
 			

@@ -36,13 +36,39 @@ class Player(Entity):
 	def gain_xp(self, amount):
 		self.xp += amount
 		old_level = self.xp_level
+		num = 0
 		while self.xp >= self.xp_to_next_level():
 			self.xp -= self.xp_to_next_level()
-			self.xp_level += 1	
+			self.xp_level += 1
+			if self.xp_level % 3 == 0:
+				num += 1	
 		if old_level != self.xp_level:
 			self.recalc_max_hp()
 			self.add_msg(f"You have reached experience level {self.xp_level}!", "good")
+			for _ in range(num*2):
+				rand = rng(1, 4)
+				match rand:
+					case 1:
+						self.STR += 1
+						msg = "You feel stronger."
+					case 2:
+						self.DEX += 1
+						msg = "You feel more agile."
+					case 3:
+						self.CON += 1
+						self.recalc_max_hp()
+						msg = "You feel your physical enendurance improve."
+					case 4:
+						self.INT += 1
+						msg = "You feel more intelligent."
+					case 5:
+						self.WIS += 1
+						msg = "You feel wiser."
+					case 6:
+						self.CHA += 1
+						msg = "You feel more charismatic."
 			
+				self.add_msg(msg, "good")
 	def calc_fov(self):
 		g = self.g
 		board = g.get_board()
@@ -171,8 +197,8 @@ class Player(Entity):
 		
 	def on_defeat_monster(self, mon):
 		g = self.g
-		xp_gain = 10 * mon.get_diff_level()**1.5
-		xp_gain = round(xp_gain/10)*10
+		xp_gain = 15 * mon.get_diff_level()**1.5
+		xp_gain = round(xp_gain/5)*5
 		self.gain_xp(xp_gain)
 		
 		if len(g.get_monsters()) <= 0:
