@@ -118,7 +118,8 @@ class Blindsight(JSONObject):
 		obj.load_required(d, "range")
 		obj.load_optional(d, "blind_beyond", False)
 		return obj
-		
+
+speed_names = ["tiny", "small", "medium", "large", "huge", "gargantuan"]		
 
 class MonsterType(JSONObject):
 	
@@ -138,6 +139,7 @@ class MonsterType(JSONObject):
 		obj.load_required(d, "diff", int)
 		obj.load_required(d, "to_hit", int)
 		obj.load_optional(d, "speed", 100, int)
+		obj.load_optional(d, "size", "medium", str)
 		obj.load_optional(d, "use_dex_melee", False, bool)
 		dam = obj.get_optional(d, "base_damage", "0", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))

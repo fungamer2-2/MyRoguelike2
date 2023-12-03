@@ -150,8 +150,9 @@ class Monster(Entity):
 			perception = 10 + (self.WIS-10)/2
 			
 			if self.sees(player) and roll < perception:
-				self.awareness += 1 + perception - roll
-				if self.awareness >= random.uniform(1, 6):
+				margin = perception - roll
+				#self.awareness += 1 + perception - roll
+				if x_in_y(1, 6 - margin): #self.awareness >= random.uniform(1, 6):
 					self.alerted()
 					self.target_entity(player)
 			else:
@@ -331,7 +332,7 @@ class Monster(Entity):
 			self.awareness = 0
 			if self.pack: #If we alert one member of the pack, alert the entire pack.
 				for mon in g.monsters_in_radius(self.pos, 7):	
-					if self.is_ally(mon):
+					if self.is_ally(mon) and one_in(2):
 						mon.set_state("AWARE")
 			if self.state == "IDLE":
 				self.set_state("AWARE")
@@ -343,7 +344,18 @@ class Monster(Entity):
 		return False
 		
 	def get_to_hit_bonus(self):
+		g = self.g
+		board = g.get_board()
+		
 		mod = self.to_hit
+		
+		size = self.type.size
+		
+		match size:
+			case "tiny":
+				mod += 4
+			case "small":
+				mod += 2
 		
 		if self.pack:
 			allies = 0
@@ -358,6 +370,19 @@ class Monster(Entity):
 				mod += bonus
 				
 		return mod
+		
+	def calc_evasion(self):
+		ev = super().calc_evasion()
+		size = self.type.size
+		
+		match size:
+			case "large":
+				ev -= 1
+			case "huge":
+				ev -= 2
+			case "gargantuan":
+				ev -= 4
+		return ev
 			
 	def attack_pos(self, pos):
 		g = self.g
@@ -370,13 +395,12 @@ class Monster(Entity):
 		mod = self.get_to_hit_bonus()
 		
 		roll = gauss_roll(mod)
-		self.add_msg(f"{roll} vs {c.calc_evasion()}")
+		
 		if roll >= c.calc_evasion():
 			damage = self.damage.roll()
 			stat = self.DEX if self.type.use_dex_melee else self.STR
 			damage += div_rand(stat - 10, 2)
-			damage = max(damage, 1)
-			
+			damage = max(damage, 1)	
 			msg_type = "bad" if c.is_player() else "neutral"
 			self.add_msg_if_u_see(self, f"{self.get_name(True)} attacks {c.get_name()}.", msg_type)
 			c.take_damage(damage)

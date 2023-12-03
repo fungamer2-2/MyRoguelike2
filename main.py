@@ -7,8 +7,7 @@ def main():
 	player = g.get_player()
 	while player.is_alive():
 		if g.process_input():
-			g.do_turn()
-		
+			g.do_turn()		
 	g.game_over()
 		
 try:

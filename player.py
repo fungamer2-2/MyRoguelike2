@@ -69,10 +69,13 @@ class Player(Entity):
 	def get_name(self, capitalize=False):
 		return "You" if capitalize else "you"
 		
-	def calc_to_hit_bonus(self):
+	def calc_to_hit_bonus(self, mon):
 		level_bonus = (self.xp_level - 1) / 4
 		stat_bonus = (self.STR - 10) / 2
-		return level_bonus + stat_bonus
+		mod = level_bonus + stat_bonus
+		if mon.state == "IDLE":
+			mod += 5
+		return mod
 		
 	def regen_rate(self):
 		mult = self.CON / 10
@@ -117,6 +120,7 @@ class Player(Entity):
 		
 		self.add_msg("You descend the stairs to the next level.")
 		g.next_level()
+		return True
 		
 	def take_damage(self, dam):
 		if dam > 0:
@@ -134,19 +138,17 @@ class Player(Entity):
 			return True
 		
 		sneak_attack = False
-		mod = self.calc_to_hit_bonus()
-		if mon.state != "AWARE":
-			mod += 5
+		mod = self.calc_to_hit_bonus(mon)
+		if mon.state == "IDLE":
 			if x_in_y(self.DEX, 30) and one_in(2):
 				sneak_attack = True
 		
 		roll = gauss_roll(mod)
 		evasion = mon.calc_evasion()
-		self.add_msg(f"To-hit: {gauss_roll_prob(mod, evasion):.2f}%")
 		if roll >= evasion:
-			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
-			damage = max(damage, 1)
 			
+			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
+			damage = max(damage, 1)	
 			if sneak_attack:
 				self.add_msg(f"You catch {mon.get_name()} off-guard!", "good")
 				damage += dice(1, 6)

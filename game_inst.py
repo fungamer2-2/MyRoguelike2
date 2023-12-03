@@ -22,6 +22,13 @@ class Game:
 		self.level = 1
 		self.subtick_timer = 0
 		self.tick = 0
+		self.select_mon = None
+		
+	def set_mon_select(self, m):
+		self.select_mon = m
+	
+	def clear_mon_select(self):
+		self.select_mon = None
 		
 	def check_mon_type(self, typ):
 		if typ not in self.mon_types:
@@ -247,17 +254,14 @@ class Game:
 				tile.stair = True
 				return
 			
-	def get_char(self, wait=True):
+	def getch(self, wait=True):
 		screen = self.screen
 		screen.nodelay(not wait)
 		if wait:
 			curses.flushinp()
 			
 		code = screen.getch()
-		if code == -1:
-			return None
-		
-		return chr(code)
+		return code
 	
 	def draw_symbol(self, row, col, symbol, color=0):
 		screen = self.screen
@@ -287,7 +291,8 @@ class Game:
 			tile = board.get_tile(pos)
 			if not tile.revealed:
 				continue
-			elif tile.wall:
+				
+			if tile.wall:
 				symbol = WALL_SYMBOL
 			elif tile.stair:
 				symbol = STAIR_SYMBOL
@@ -341,7 +346,8 @@ class Game:
 			symbol = m.symbol 
 			if m.state == "IDLE":
 				color = curses.A_REVERSE
-			
+			if m is self.select_mon:
+				color = curses.color_pair(COLOR_GREEN) | curses.A_REVERSE
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color)	
 		
 		pos = player.pos
@@ -386,7 +392,6 @@ class Game:
 		screen.erase()
 		offset_y = 2
 		
-		
 		self.reveal_seen_tiles()
 		self.draw_walls(offset_y)
 		self.draw_monsters(offset_y)
@@ -414,9 +419,8 @@ class Game:
 				player.use_energy(100)
 			return True
 		
-		char = self.get_char()
-		
-		
+		code = self.getch()
+		char = chr(code)
 		
 		if char == "w":
 			return player.move_dir(0, -1)
@@ -433,33 +437,142 @@ class Game:
 				self.add_message("You begin resting.")
 				player.is_resting = True
 				return True
+		elif char == "v":
+			return self.view_monsters()
 		elif char == " ":
 			player.use_energy(100)
 			return True
 		
 		return False
 		
-	def draw_game_over(self):
+	def select_monster_menu(self, monsters, check_fov=True):
+		player = self.get_player()
+		monsters = monsters.copy()
+		
+		if check_fov:
+			monsters = [mon for mon in monsters if player.sees(monster)]
+		if not monsters:
+			return False
+			
+		#Sort by y position first, then sort by x position
+		monsters.sort(key=lambda m: m.pos.y)
+		monsters.sort(key=lambda m: m.pos.x)
+		
+		self.add_message("View info of which monster? (Use the a and d keys to select, then press Enter)")
+		
+		cursor = (len(monsters)-1)//2
+		mon = None
+		while True:
+			self.set_mon_select(monsters[cursor])
+			self.draw_board()
+			code = self.getch()
+			char = chr(code)
+			if char == "a":
+				cursor -= 1
+			elif char == "d":
+				cursor += 1
+			elif code == 10:
+				mon = monsters[cursor]
+				break
+			cursor %= len(monsters)
+		
+		self.clear_mon_select()
+		self.print_monster_info(mon)	
+		return False
+		
+	def print_monster_info(self, monster):
+		player = self.get_player()
+		
+		a_an = "an" if monster.name[0] in "aeiou" else "a"
+		
+		info = PopupInfo(self)
+		info.add_line(f"This is a {a_an} {monster.name}.")
+		info.add_line()
+		if monster.state == "IDLE":
+			info.add_line("It is currently unaware of your presence.")
+		if monster.pack:
+			info.add_line("This creature travels in packs and takes advantage of its nearby allies to ")
+		
+		mon_speed = monster.get_speed()
+		player_speed = player.get_speed()
+		diff = mon_speed / player_speed
+		
+		if mon_speed != player_speed:
+			if mon_speed > player_speed:
+				diff_str = f"{diff:.2f}x"
+			else:
+				diff_str = f"{diff*100:.2f}%"
+			info.add_line(f"This monster is about {diff_str} as fast as you.")	
+		 
+		
+		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), monster.calc_evasion())
+		monster_to_hit = gauss_roll_prob(monster.get_to_hit_bonus(), player.calc_evasion())
+		
+		info.add_line(f"Your attacks have a {player_to_hit:.2f}% probability to hit this creature.")
+		info.add_line(f"Its attacks have a {monster_to_hit:.2f}% probability to hit you.")
+		info.show()
+		self.getch()
+		
+	def view_monsters(self):
+		player = self.get_player()
+		monsters = list(player.visible_monsters())
+		return self.select_monster_menu(monsters, False)
+	
+	def create_popup_window(self):
 		screen = self.screen
-		gameover_win = screen.subwin(18, 50, 2, 0)
+		win = screen.subwin(18, 50, 2, 0)
+		win.erase()
+		win.border("|", "|", "-", "-", "+", "+", "+", "+")
+		return win
+		
+	def draw_game_over(self):
+		gameover_win = self.create_popup_window()
 		
 		def draw_center_text(y, txt):
 			h, w = gameover_win.getmaxyx()
-			w -= 2
-			x = (w - len(txt) + 1)//2 + 1			
+			x = (w - len(txt))//2			
 			gameover_win.addstr(y, x, txt)
 		
-		
-		gameover_win.clear()
-		gameover_win.border("|", "|", "-", "-", "+", "+", "+", "+")
 		draw_center_text(1, "GAME OVER")
 		draw_center_text(2, "You have died.")
 		draw_center_text(4, "Press Enter to exit.")
+		gameover_win.refresh()
 		
 	def game_over(self):
 		self.draw_board()
 		self.draw_game_over()
 		self.screen.refresh()
-		while ord(self.get_char()) != 10: 
+		while self.getch() != 10: 
 			pass
 		
+class PopupInfo:
+	
+	def __init__(self, g):
+		self.g = g
+		screen = g.screen
+		self.screen = screen.subwin(18, 50, 2, 0)
+		self.lines = []
+		
+	def add_line(self, line=None):
+		screen = self.screen
+		h, w = screen.getmaxyx()
+		max_width = w - 2
+		
+		if line is None:
+			self.lines.append("")
+		else:
+			lines = textwrap.wrap(line, width=max_width)	
+			self.lines.extend(lines)
+		
+	def show(self):
+		screen = self.screen
+		screen.erase()
+		screen.border("|", "|", "-", "-", "+", "+", "+", "+")
+		h, w = screen.getmaxyx()
+		
+		max_disp = h - 2
+		
+		for i in range(min(len(self.lines), max_disp)):
+			screen.addstr(i + 1, 1, self.lines[i])
+		
+		screen.refresh()
