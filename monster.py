@@ -19,7 +19,6 @@ class Monster(Entity):
 		self.path = deque()
 		self.pack = True
 		self.to_hit = 0
-		self.awareness = 0
 		self.damage = Dice(0,0,0)
 		self.type = None
 		
@@ -151,13 +150,10 @@ class Monster(Entity):
 			
 			if self.sees(player) and roll < perception:
 				margin = perception - roll
-				#self.awareness += 1 + perception - roll
-				if x_in_y(1, 6 - margin): #self.awareness >= random.uniform(1, 6):
+				if x_in_y(1, 6 - margin):
 					self.alerted()
 					self.target_entity(player)
-			else:
-				self.awareness = max(self.awareness - 1, 0)	
-		
+			
 	def do_turn(self):
 		assert self.energy > 0
 		
@@ -329,7 +325,6 @@ class Monster(Entity):
 		if self.state == "TRACKING":
 			self.patience = max(self.patience, rng(5, 15) + self.WIS)
 		else:
-			self.awareness = 0
 			if self.pack: #If we alert one member of the pack, alert the entire pack.
 				for mon in g.monsters_in_radius(self.pos, 7):	
 					if self.is_ally(mon) and one_in(2):
