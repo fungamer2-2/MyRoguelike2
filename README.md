@@ -11,5 +11,6 @@ It entirely uses the CLI interface.
 `wasd` - move around<br />
 `SPACE` - wait a turn<br />
 `r` - rest until HP is restored<br />
+`v` - view info of any monster in FOV<br />
 `>` - (only when on a stair tile) proceed downward to the next level<br />
 
