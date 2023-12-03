@@ -489,7 +489,7 @@ class Game:
 		info.add_line(f"This is a {a_an} {monster.name}.")
 		info.add_line()
 		if monster.state == "IDLE":
-			info.add_line("It is currently unaware of your presence.")
+			info.add_line("It hasn't noticed your presence yet.")
 		if monster.pack:
 			info.add_line("This creature travels in packs and takes advantage of its nearby allies to ")
 		

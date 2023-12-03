@@ -348,9 +348,9 @@ class Monster(Entity):
 		
 		match size:
 			case "tiny":
-				mod += 4
-			case "small":
 				mod += 2
+			case "small":
+				mod += 1
 		
 		if self.pack:
 			allies = 0

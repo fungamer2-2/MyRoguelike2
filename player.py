@@ -41,6 +41,7 @@ class Player(Entity):
 			self.xp_level += 1	
 		if old_level != self.xp_level:
 			self.recalc_max_hp()
+			self.add_msg(f"You have reached experience level {self.xp_level}!", "good")
 			
 	def calc_fov(self):
 		g = self.g
@@ -170,7 +171,6 @@ class Player(Entity):
 		
 	def on_defeat_monster(self, mon):
 		g = self.g
-		self.add_msg(f"You have defeated yet another monster!", "good")
 		xp_gain = 10 * mon.get_diff_level()**1.5
 		xp_gain = round(xp_gain/10)*10
 		self.gain_xp(xp_gain)
@@ -178,6 +178,8 @@ class Player(Entity):
 		if len(g.get_monsters()) <= 0:
 			g.place_stairs()
 			self.add_msg("The stairs proceeding downward to the next level begin to open up...")
+			if g.level == 1:
+				self.add_msg("You have completed the first level! Move onto the '>', then press the '>' key to go downstairs.", "info")
 			
 	def move_dir(self, dx, dy):
 		oldpos = self.pos.copy()
