@@ -51,15 +51,6 @@ class Board:
 		width = self.width
 		height = self.height
 		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
-	
-	def diagonal_blocked(self, p1, p2):
-		delta = p1 - p2
-		ad = abs(delta)
-		blocked = 0
-		if ad.x == 1 and ad.y == 1:
-			blocked += not self.passable(Point(pos.x + delta.x, pos.y))
-			blocked += not self.passable(Point(pos.x, pos.y + delta.y))	
-		return blocked >= 2
 		
 	def has_line_of_sight(self, pos1, pos2):
 		return self._check_simple_los(pos1, pos2) or self._check_simple_los(pos2, pos1)
@@ -202,6 +193,7 @@ class Board:
 		fov = set()
 		width = self.width
 		height = self.height
+		#Initial raycasting step
 		for x in range(width):
 			for p in points_in_line(pos, Point(x, 0)):		
 				if not self.has_line_of_sight(pos, p):
@@ -228,6 +220,8 @@ class Board:
 						fov.add(p)
 					break
 				fov.add(p)
+				
+		#Cleanup step - ensure that nearby walls around open spaces are visible
 		seen = set()
 		for cell in fov.copy():
 			if not self.passable(cell):
