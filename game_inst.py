@@ -361,15 +361,11 @@ class Game:
 
 	def draw_monsters(self, offset_y):
 		player = self.get_player()
-		for m in self.monsters:
+		for m in player.visible_monsters():
 			pos = m.pos
-			color = 0
-			
-			if not player.sees(m):
-				continue
 			symbol = m.symbol 
-			if m.state == "IDLE":
-				color = curses.A_REVERSE
+			
+			color = m.display_color()
 			if m is self.select_mon:
 				color = curses.color_pair(COLOR_GREEN) | curses.A_REVERSE
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color)	

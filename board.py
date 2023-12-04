@@ -44,9 +44,7 @@ class Board:
 		cache1 = self.los_cache[pos1.y][pos1.x]
 		if (val := cache1.get(pos2)):
 			return val
-		cache2 = self.los_cache[pos2.y][pos2.x]
-		if (val := cache2.get(pos1)):
-			return val
+		
 		return None
 		
 	def clear_los_cache(self):
@@ -64,14 +62,12 @@ class Board:
 		return blocked >= 2
 		
 	def has_line_of_sight(self, pos1, pos2):
+		return self._check_simple_los(pos1, pos2) or self._check_simple_los(pos2, pos1)
+		
+	def _check_simple_los(self, pos1, pos2):
 		if pos1 == pos2:
 			return True
-		if pos1.x < pos2.x:
-			pos1, pos2 = pos2, pos1
-		elif pos1.x == pos2.x:
-			if pos1.y > pos2.y:
-				pos1, pos2 = pos2, pos1
-			
+		
 		if (val := self.get_los_cache(pos1, pos2)):
 			return val
 		old_pos = None

@@ -3,7 +3,7 @@ from player import Player
 from utils import *
 from pathfinding import find_path
 from collections import deque
-import random
+import random, curses
 from json_obj import *
 
 class Monster(Entity):
@@ -476,4 +476,8 @@ class Monster(Entity):
 				
 		self.move_to_target()
 		
-			
+	def display_color(self):
+		color = 0
+		if self.state == "IDLE":
+			color = curses.A_REVERSE	
+		return color
