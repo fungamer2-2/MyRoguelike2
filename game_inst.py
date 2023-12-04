@@ -232,6 +232,8 @@ class Game:
 				m.tick()
 			
 		remaining = self.monsters.copy()
+		random.shuffle(remaining)
+		remaining.sort(key=lambda m: m.energy, reverse=True)
 		
 		while len(remaining) > 0:
 			nextremain = []
@@ -309,12 +311,14 @@ class Game:
 			if not tile.revealed:
 				continue
 				
+			seen = player.sees(pos)
+				
 			if tile.wall:
 				symbol = WALL_SYMBOL
 			elif tile.stair:
 				symbol = STAIR_SYMBOL
 			else:
-				symbol = "." if player.sees(pos) else " "
+				symbol = "." if seen else " "
 			
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol)
 			

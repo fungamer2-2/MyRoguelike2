@@ -6,11 +6,13 @@ class Player(Entity):
 	
 	def __init__(self):
 		super().__init__()
-		self.STR = gen_stat() + 1
-		self.DEX = gen_stat() + 1
-		self.CON = gen_stat() + 1
-		self.INT = gen_stat() + 1
-		self.WIS = gen_stat() + 1
+		stats = gen_stats()
+		self.STR = stats[0] + 1
+		self.DEX = stats[1] + 1
+		self.CON = stats[2] + 1
+		self.INT = stats[3] + 1
+		self.WIS = stats[4] + 1
+		self.CHA = stats[5] + 1
 		self.MAX_HP = 10
 		self.xp = 0
 		self.xp_level = 1
@@ -98,7 +100,8 @@ class Player(Entity):
 		
 	def calc_to_hit_bonus(self, mon):
 		level_bonus = (self.xp_level - 1) / 4
-		stat_bonus = (self.STR - 10) / 2
+		avg = (self.STR + self.DEX) / 2
+		stat_bonus = (avg - 10) / 2
 		mod = level_bonus + stat_bonus
 		if mon.state == "IDLE":
 			mod += 5
@@ -106,10 +109,10 @@ class Player(Entity):
 		
 	def regen_rate(self):
 		mult = self.CON / 10
-		return 0.035 * mult
+		return 0.04 * mult
 		
 	def recalc_max_hp(self):
-		level_mod = 5 * (self.xp_level - 1)
+		level_mod = 8 * (self.xp_level - 1)
 		level_mod *= self.CON / 10
 		self.MAX_HP = round(10 + level_mod)
 		

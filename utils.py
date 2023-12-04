@@ -2,6 +2,27 @@ import random, math
 
 from random import randint as rng
 
+def gen_stats():
+	points = 27
+	stats = [8] * 6
+	
+	ind = -1
+	while points > 0:
+		eligible = [i for i in range(6) if stats[i] < 15]	
+		if ind == -1:
+			ind = random.choice(eligible)
+		cost = 2 if stats[ind] >= 13 else 1
+		if points < cost:
+			ind = -1
+			continue
+		stats[ind] += 1
+		points -= cost
+		
+		if stats[ind] >= 15 or random.randint(1, 2) == 1:
+			ind = -1
+			
+	return stats
+
 def gauss_roll(mod):
 	return random.gauss(10 + mod, 5)
 	
