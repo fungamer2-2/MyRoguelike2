@@ -1,7 +1,7 @@
 # MyRoguelike2
 **NOTE: This is still a work in progress**
 
-Game version: `0.2.1`<br />
+Game version: `0.2.2`<br />
 Required Python version: 3.11
 
 This is a terminal-based roguelike game in Python.
