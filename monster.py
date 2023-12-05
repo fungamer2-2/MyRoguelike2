@@ -486,11 +486,13 @@ class Monster(Entity):
 				if self.pursue_check > 0:
 					self.idle()
 				elif self.target_pos == self.pos:
+					#Once we reach the target, make a perception check contested by the player's stealth check to determibe the new location
 					player_stealth_roll = gauss_roll((player.DEX-10)/2)
 					perception_roll = gauss_roll((self.WIS-10)/2) + self.get_skill("perception")
 					if perception_roll >= player_stealth_roll:
 						self.set_target(player.pos)
 					else:
+						#If we fail, idle around for a few turns instead
 						self.pursue_check = rng(1, 3)
 						self.idle()
 						
