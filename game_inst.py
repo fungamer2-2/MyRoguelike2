@@ -5,7 +5,7 @@ from monster import Monster
 from player import Player
 from const import *
 from messages import MessageLog
-
+from noise_event import NoiseEvent
 from utils import *	
 import curses, textwrap, math
 
@@ -23,6 +23,11 @@ class Game:
 		self.subtick_timer = 0
 		self.tick = 0
 		self.select_mon = None
+		self.noise_events = []
+		
+	def add_noise_event(self, pos, loudness):
+		if loudness > 0:
+			self.noise_events.append(NoiseEvent(pos, loudness))
 		
 	def set_mon_select(self, m):
 		self.select_mon = m
@@ -209,6 +214,16 @@ class Game:
 		
 	def get_monsters(self):
 		return [mon for mon in self.monsters if mon.is_alive()]	
+	
+	def process_noise_events(self):
+		if not self.noise_events:
+			return
+		for noise in self.noise_events:
+			for m in self.monsters:
+				m.on_hear_noise(noise)
+				
+		self.noise_events.clear()
+		
 		
 	def do_turn(self):
 		board = self.get_board()
@@ -217,26 +232,35 @@ class Game:
 		
 		if used <= 0:
 			return
+		
 		self.refresh_mon_pos_cache()
 		player.do_turn()
 		
 		self.subtick_timer += used
-		player.energy += used	
+		player.energy += used
 		for m in self.monsters:		
 			m.energy += used
 			
+		
+		
+		self.process_noise_events()	
 		while self.subtick_timer >= 100:
 			self.subtick_timer -= 100
 			self.tick += 1
 			for m in self.monsters:
 				m.tick()
+				
 			
 		remaining = self.monsters.copy()
 		random.shuffle(remaining)
 		remaining.sort(key=lambda m: m.energy, reverse=True)
 		
+		
+		
 		while len(remaining) > 0:
 			nextremain = []
+			
+			
 			for m in remaining:
 				if not m.is_alive():
 					continue
@@ -311,16 +335,17 @@ class Game:
 			if not tile.revealed:
 				continue
 				
-			seen = player.sees(pos)
+			seen = player.sees_pos(pos)
 				
 			if tile.wall:
 				symbol = WALL_SYMBOL
 			elif tile.stair:
 				symbol = STAIR_SYMBOL
 			else:
-				symbol = "." if seen else " "
+				symbol = " " if seen else " "
 			
-			self.draw_symbol(pos.y + offset_y, pos.x, symbol)
+			color = 0 if seen else curses.color_pair(COLOR_GRAY)
+			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color	)
 			
 	def draw_stats(self):
 		board = self.get_board()

@@ -42,10 +42,18 @@ class Player(Entity):
 		while self.xp >= self.xp_to_next_level():
 			self.xp -= self.xp_to_next_level()
 			self.xp_level += 1
-			if self.xp_level % 3 == 0:
-				num += 1	
-		if old_level != self.xp_level:
+			oldmax = self.MAX_HP
 			self.recalc_max_hp()
+			diff = self.MAX_HP - oldmax
+			
+			self.heal(rng(0, diff))
+			
+			if self.xp_level % 3 == 0:
+				num += 1
+				
+				
+		if old_level != self.xp_level:
+			
 			self.add_msg(f"You have reached experience level {self.xp_level}!", "good")
 			for _ in range(num*2):
 				rand = rng(1, 6)
@@ -76,13 +84,16 @@ class Player(Entity):
 		board = g.get_board()
 		self.fov = board.get_fov(self.pos)
 		
+	def sees_pos(self, other):
+		return other in self.fov
+			
+		
 	def sees(self, other):
-		if isinstance(other, Point):
-			return other in self.fov
+		
 		if self is other:
 			return True
 		
-		return other.pos in self.fov
+		return self.sees_pos(other.pos)
 		
 	def visible_monsters(self):
 		g = self.g
@@ -103,7 +114,7 @@ class Player(Entity):
 		avg = (self.STR + self.DEX) / 2
 		stat_bonus = (avg - 10) / 2
 		mod = level_bonus + stat_bonus
-		if mon.state == "IDLE":
+		if not mon.is_aware():
 			mod += 5
 		return mod
 		
@@ -129,7 +140,7 @@ class Player(Entity):
 		prev_adj = [mon for mon in g.monsters_in_radius(oldpos, 1)]
 		
 		for mon in prev_adj:
-			if not mon.state == "AWARE":
+			if not mon.is_aware():
 				continue
 			if self.distance(mon) >= 2 and mon.sees(self):
 				player_roll = random.triangular(0, self.get_speed())
@@ -169,7 +180,7 @@ class Player(Entity):
 		
 		sneak_attack = False
 		mod = self.calc_to_hit_bonus(mon)
-		if mon.state == "IDLE":
+		if not mon.is_aware():
 			if x_in_y(self.DEX, 30) and one_in(2):
 				sneak_attack = True
 		
@@ -178,11 +189,19 @@ class Player(Entity):
 		if roll >= evasion:
 			
 			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
-			damage = max(damage, 1)	
+			damage = max(damage, 1)
+			noise = rng(1, 2) + rng(0, round(damage ** 0.65))
 			if sneak_attack:
-				self.add_msg(f"You catch {mon.get_name()} off-guard!", "good")
+				msg = [
+					f"You catch {mon.get_name()} off-guard!",
+					f"You strike {mon.get_name()} while it was unaware!",
+					f"You sneak up and strike {mon.get_name()} from behind!"
+				]
+				self.add_msg(random.choice(msg))
 				damage += dice(1, 6)
-			
+				noise = div_rand(noise, 2)
+			self.make_noise(noise)
+			self.add_msg(f"Made combat sound of {noise}")
 			self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
 			
 			mon.take_damage(damage)
@@ -192,7 +211,7 @@ class Player(Entity):
 				self.on_defeat_monster(mon)
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
-		
+			self.make_noise(rng(1, 2))
 		self.use_energy(100)
 		
 		mon.alerted()

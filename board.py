@@ -197,27 +197,19 @@ class Board:
 		for x in range(width):
 			for p in points_in_line(pos, Point(x, 0)):		
 				if not self.has_line_of_sight(pos, p):
-					if not self.passable(p):
-						fov.add(p)
 					break
 				fov.add(p)	
 			for p in points_in_line(pos, Point(x, height-1)):
 				if not self.has_line_of_sight(pos, p):
-					if not self.passable(p):
-						fov.add(p)
 					break
 				fov.add(p)
 		for y in range(1, height-1):
 			for p in points_in_line(pos, Point(0, y)):
 				if not self.has_line_of_sight(pos, p):
-					if not self.passable(p):
-						fov.add(p)
 					break
 				fov.add(p)
 			for p in points_in_line(pos, Point(width-1, y)):
 				if not self.has_line_of_sight(pos, p):
-					if not self.passable(p):
-						fov.add(p)
 					break
 				fov.add(p)
 				
@@ -231,12 +223,16 @@ class Board:
 				Point(cell.x-1, cell.y),
 				Point(cell.x+1, cell.y),
 				Point(cell.x, cell.y+1),
-				Point(cell.x, cell.y-1)
+				Point(cell.x, cell.y-1),
+				Point(cell.x-1, cell.y-1),
+				Point(cell.x+1, cell.y-1),
+				Point(cell.x-1, cell.y+1),
+				Point(cell.x+1, cell.y+1)
 			]
 			for p in neighbors:
 				if p in seen or p in fov:
 					continue
-				seen.add(p)
+				
 				if not self.in_bounds(p):
 					continue
 					
@@ -244,17 +240,18 @@ class Board:
 					can_see = False
 					
 					d = p - cell
-					d_abs = abs(d)
+					
 					if delta.x <= 0 and delta.y <= 0:
 						can_see = d.x <= 0 or d.y <= 0
 					if delta.x >= 0 and delta.y <= 0:
-						can_see = d.x >= 0 or d.y <= 0
+						can_see |= d.x >= 0 or d.y <= 0
 					if delta.x <= 0 and delta.y >= 0:
-						can_see = d.x <= 0 or d.y >= 0
+						can_see |= d.x <= 0 or d.y >= 0
 					if delta.x >= 0 and delta.y >= 0:
-						can_see = d.x >= 0 or d.y >= 0
+						can_see |= d.x >= 0 or d.y >= 0
 					
 					if can_see:
+						seen.add(p)
 						fov.add(p)
 				
 		return fov

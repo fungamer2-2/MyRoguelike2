@@ -16,9 +16,11 @@ class Monster(Entity):
 		self.target_pos = None
 		self.state = "IDLE"
 		self.patience = 0
+		self.pursue_check = 0
 		self.path = deque()
 		self.pack = True
 		self.to_hit = 0
+		self.soundf = 0
 		self.damage = Dice(0,0,0)
 		self.type = None
 		
@@ -51,6 +53,10 @@ class Monster(Entity):
 		
 	def has_flag(self, name):
 		return name in self.type.flags
+		
+	def get_skill(self, name):
+		skills = self.type.skills
+		return skills.get("name", 0)
 		
 	def get_speed(self):
 		return self.type.speed
@@ -121,7 +127,7 @@ class Monster(Entity):
 			
 	def base_pursue_duration(self):
 		#How long to continue tracking after losing sight of the player
-		return 4 * self.INT + 6
+		return 4 * self.INT + 8
 		
 	def set_target(self, pos):
 		if self.has_target():
@@ -135,15 +141,27 @@ class Monster(Entity):
 	def has_target(self):
 		return self.target_pos is not None
 		
-	def process_state(self):	
+	def on_hear_noise(self, noise):
 		g = self.g
 		player = g.get_player()
 		
-		match self.state:			
-			case "TRACKING":
-				if self.patience > 0:
-					self.patience -= 1
-					
+		distance = self.distance(noise.pos)
+		eff_vol = noise.loudness 
+		if self.has_flag("KEEN_HEARING"):
+			eff_vol *= 2
+		
+		seen = self.sees_pos(noise.pos)
+			
+		loudness = eff_vol - distance
+		if loudness <= 0:
+			return
+		
+		self.set_target(noise.pos)
+		
+		if self.state in ["IDLE", "TRACKING"]:
+			self.state = "TRACKING_SOUND"
+			self.soundf = max(self.soundf, self.INT * loudness)
+		
 	def tick(self):
 		g = self.g
 		player = g.get_player()
@@ -155,28 +173,31 @@ class Monster(Entity):
 			sight = self.type.blindsight
 			if sight and self.distance(player) <= sight.range:
 				perception += 4
-			
+			if self.has_flag("KEEN_SMELL"):
+				mod = max(1 - self.distance(player)/15, 0)
+				perception += 4 * mod
+			perception += self.get_skill("perception")	
+				
 			alert = False
 			if self.sees(player):
-				auto_fail = one_in(100)
+				auto_fail = one_in(70)
 				if auto_fail or roll < perception:
 					margin = perception - roll
 					if auto_fail or x_in_y(1, 6 - margin):
-						alert = True
-				elif one_in(3) and self.has_flag("KEEN_SMELL"):
-					mod = per_mod - self.distance(player) / 4
-					if gauss_roll(mod) >= 10:
 						alert = True
 						
 			if alert:
 				self.alerted()
 				self.target_entity(player)
-				
+		elif self.state == "TRACKING":
+			if self.patience > 0:
+				self.patience -= 1
 			
+			if self.pursue_check > 0:
+				self.pursue_check -= 1
+		
 	def do_turn(self):
 		assert self.energy > 0
-		
-		self.process_state()
 		old = self.energy
 		self.move()
 		if self.energy == old:
@@ -340,12 +361,13 @@ class Monster(Entity):
 		self.add_msg_if_u_see(self, f"{self.get_name(True)} dies!", "good")
 		board.erase_collision_cache(self.pos)
 		
+	def is_aware(self):
+		return self.state in ["AWARE", "TRACKING"]
+		
 	def alerted(self):
 		g = self.g
 		board = g.get_board()
-		if self.state == "TRACKING":
-			self.patience = max(self.patience, rng(5, 15) + self.WIS)
-		else:
+		if not self.is_aware():
 			if self.pack: #If we alert one member of the pack, alert the entire pack.
 				for mon in g.monsters_in_radius(self.pos, 7):	
 					if self.is_ally(mon) and one_in(2):
@@ -449,35 +471,49 @@ class Monster(Entity):
 					self.idle()				
 			case "AWARE":	
 				if self.sees(player):
-					grouped = False
-					if not grouped:
-						self.target_entity(player)
-						
+					self.target_entity(player)
 					if self.id == "bat" and one_in(5):
 						self.set_rand_target()
 					
 				else:
 					self.set_state("TRACKING")
 					self.target_entity(player)
+					self.pursue_check = 0
 					patience = self.base_pursue_duration()	
 					self.patience = round(patience * random.triangular(0.8, 1.2))
 				
 			case "TRACKING":
-				if self.target_pos == self.pos:
+				if self.pursue_check > 0:
+					self.idle()
+				elif self.target_pos == self.pos:
 					player_stealth_roll = gauss_roll((player.DEX-10)/2)
-					perception_roll = gauss_roll((self.WIS-10)/2)
+					perception_roll = gauss_roll((self.WIS-10)/2) + self.get_skill("perception")
 					if perception_roll >= player_stealth_roll:
 						self.set_target(player.pos)
+					else:
+						self.pursue_check = rng(1, 3)
+						self.idle()
 						
+		
 				if self.sees(player):
 					self.set_state("AWARE")
 				elif self.patience <= 0:
+					self.set_state("IDLE")
+					
+			case "TRACKING_SOUND":
+				if self.soundf > 0:
+					self.soundf -= 1
+				
+				if self.sees(player):
+					self.set_state("AWARE")
+					self.alerted()
+				elif self.soundf <= 0:
 					self.set_state("IDLE")
 				
 		self.move_to_target()
 		
 	def display_color(self):
 		color = 0
-		if self.state == "IDLE":
+		if not self.is_aware():
 			color = curses.A_REVERSE	
 		return color

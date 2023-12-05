@@ -144,6 +144,7 @@ class MonsterType(JSONObject):
 		obj.load_optional(d, "attack_msg", "<monster> attacks <target>", str)
 		obj.load_optional(d, "use_dex_melee", False, bool)
 		obj.load_optional(d, "flags", [])
+		obj.load_optional(d, "skills", {}, dict)
 		dam = obj.get_optional(d, "base_damage", "0", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		

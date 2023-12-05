@@ -41,7 +41,7 @@ def one_in(x):
 	
 def x_in_y(x, y):
 	return random.uniform(0.0, y) < x
-	
+
 def div_rand(x, y):
 	"Computes x/y then randomly rounds the result up or down depending on the remainder"
 	sign = 1

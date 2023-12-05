@@ -106,3 +106,7 @@ class Entity(ABC):
 		
 	def do_turn(self):
 		pass
+		
+	def make_noise(self, volume):
+		g = self.g
+		g.add_noise_event(self.pos, volume)
