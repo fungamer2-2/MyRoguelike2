@@ -8,6 +8,7 @@ class Tile:
 		self.wall = False
 		self.revealed = False
 		self.stair = False
+		self.items = []
 		
 	def is_passable(self):
 		return not self.wall	
@@ -20,11 +21,21 @@ class Board:
 		self.clear_grid()
 		self.mon_collision_cache = [[None for i in range(width)] for j in range(height)]	
 		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
-		
+	
+	def place_item_at(self, pos, item):
+		self.get_tile(pos).items.append(item)
+	
 	def clear_grid(self):
 		width = self.width
 		height = self.height
 		self.grid = [[Tile() for _ in range(width)] for _ in range(height)]	
+		
+	def random_passable(self):
+		while True:
+			pos = self.random_pos()
+			if self.passable(pos):
+				return pos
+				
 		
 	def init_border(self):
 		width = self.width

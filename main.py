@@ -5,6 +5,7 @@ g = Game()
 def main():
 	g.init_game()
 	player = g.get_player()
+	
 	while player.is_alive():
 		if g.process_input():
 			g.do_turn()		

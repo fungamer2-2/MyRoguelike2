@@ -20,6 +20,27 @@ class Player(Entity):
 		self.fov = set()
 		self.energy_used = 0
 		self.is_resting = False
+		self.inventory = []
+		
+	def calc_evasion(self):
+		dex = self.DEX
+		
+		bonus = 5 + (dex - 10) / 2
+		if not self.is_alive():
+			bonus = 0
+		else:
+			if self.has_status("Hasted"):
+				bonus += 2
+			if self.has_status("Enlarged"):
+				bonus *= 0.75
+			elif self.has_status("Reduced"):
+				bonus *= 1.25
+		
+		
+		return bonus
+		
+	def add_to_inventory(self, item):
+		self.inventory.append(item)
 		
 	def interrupt(self):
 		self.is_resting = False
@@ -86,10 +107,8 @@ class Player(Entity):
 		
 	def sees_pos(self, other):
 		return other in self.fov
-			
-		
+	
 	def sees(self, other):
-		
 		if self is other:
 			return True
 		
@@ -105,27 +124,37 @@ class Player(Entity):
 			for pos in self.fov:
 				if (m := g.monster_at(pos)):
 					yield m
+					
+	def get_speed(self):
+		speed = 100
+		if self.has_status("Hasted"):
+			speed *= 2
+		return speed
 		
 	def get_name(self, capitalize=False):
 		return "You" if capitalize else "you"
 		
 	def calc_to_hit_bonus(self, mon):
-		level_bonus = (self.xp_level - 1) / 4
+		level_bonus = (self.xp_level - 1) / 3
 		avg = (self.STR + self.DEX) / 2
 		stat_bonus = (avg - 10) / 2
 		mod = level_bonus + stat_bonus
 		if not mon.is_aware():
 			mod += 5
+		
+		if self.has_status("Reduced"):
+			mod += 1
 		return mod
 		
 	def regen_rate(self):
 		mult = self.CON / 10
-		return 0.04 * mult
+		return 0.035 * mult
 		
 	def recalc_max_hp(self):
 		level_mod = 8 * (self.xp_level - 1)
 		level_mod *= self.CON / 10
-		self.MAX_HP = round(10 + level_mod)
+		val = 10 + level_mod
+		self.MAX_HP = round(val)
 		
 	def move_to(self, pos):
 		if super().move_to(pos):
@@ -134,11 +163,46 @@ class Player(Entity):
 			return True
 		return False
 		
-	def on_move(self, oldpos):
+	def pickup(self):
 		g = self.g
 		board = g.get_board()
+		items = g.items_at(self.pos)
+		if not items:
+			self.add_msg("There's nothing to pick up there.")
+			return False
+			
+		item = items.pop()
+		self.add_msg(f"You pick up a {item.name}.")
+		self.add_to_inventory(item)
+		self.use_energy(100)
+		return True
+		
+	def use_item(self):
+		if not self.inventory:
+			self.add_msg("You have nothing in your inventory.")
+			return
+		g = self.g
+		item = g.select_use_item()
+		if not item:
+			return False
+		self.add_msg(f"You have selected {item.name}")
+		used = item.use(self)
+		if used:
+			self.inventory.remove(item)
+		return used	
+		
+	def on_move(self, oldpos):
+		g = self.g
 		prev_adj = [mon for mon in g.monsters_in_radius(oldpos, 1)]
 		
+		items = g.items_at(self.pos)
+		if items:
+			if len(items) == 1:
+				item = items[0]
+				self.add_msg(f"You see a {item.name} here.")
+			else:
+				items = ", ".join(item.name for item in items)
+				self.add_msg(f"You see here: {items}")
 		for mon in prev_adj:
 			if not mon.is_aware():
 				continue
@@ -189,6 +253,10 @@ class Player(Entity):
 		if roll >= evasion:
 			
 			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
+			if self.has_status("Enlarged"):
+				damage += dice(1, 6)
+			elif self.has_status("Reduced"):
+				damage = div_rand(damage, 2)
 			damage = max(damage, 1)
 			noise = rng(1, 2) + rng(0, round(damage ** 0.65))
 			if sneak_attack:
@@ -200,6 +268,7 @@ class Player(Entity):
 				self.add_msg(random.choice(msg))
 				damage += dice(1, 6)
 				noise = div_rand(noise, 2)
+			
 			self.make_noise(noise)
 			self.add_msg(f"Made combat sound of {noise}")
 			self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
@@ -243,11 +312,30 @@ class Player(Entity):
 		return False
 	
 	def do_turn(self):
-		subt = self.energy_used / 100
+		used = self.energy_used
+		subt = used / 100
 		self.energy_used = 0
 		self.regen_tick += self.regen_rate() * subt
 		while self.regen_tick >= 1:
 			self.regen_tick -= 1
 			self.heal(1)
-			
 		
+		for name in list(self.status.keys()):
+			self.status[name] -= used
+			if self.status[name] <= 0:
+				self.remove_status(name)
+				if name == "Enlarged" or name == "Reduced":
+					self.add_msg("Your body returns to normal size.", "info")
+			
+		for mon in self.visible_monsters():
+			if mon.check_alerted():
+				mon.alerted()
+				mon.target_entity(self)
+				
+	def stealth_roll(self):
+		stealth = (self.DEX-10)/2
+		if self.has_status("Reduced"):
+			stealth += 2
+		elif self.has_status("Enlarged"):
+			stealth -= 2
+		return gauss_roll(stealth)	

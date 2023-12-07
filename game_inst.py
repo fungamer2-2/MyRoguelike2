@@ -6,7 +6,8 @@ from player import Player
 from const import *
 from messages import MessageLog
 from noise_event import NoiseEvent
-from utils import *	
+from utils import *
+from items import *	
 import curses, textwrap, math
 
 class Game:
@@ -76,7 +77,8 @@ class Game:
 		
 	def next_level(self):
 		self.level += 1
-		self.generate_level()		
+		self.generate_level()
+		self.refresh_mon_pos_cache()		
 		self.draw_board()
 		
 	def generate_level(self):
@@ -88,7 +90,19 @@ class Game:
 		board.procgen_level()
 		self.place_player()
 		self.place_monsters()
+		self.place_items()
+	
+	def place_items(self):
+		board = self.get_board()
 		
+		for _ in range(rng(1, 3)):
+			pos = board.random_passable()
+			
+			typ = HealingPotion
+			if one_in(3):
+				typ = random.choice([EnlargementPotion, ShrinkingPotion])
+			board.place_item_at(pos, typ())
+			
 	def place_monsters(self):
 		eligible_types = []
 		for typ in self.get_all_monster_types():
@@ -102,7 +116,9 @@ class Game:
 		packs = 0
 		while num_monsters > 0:
 			typ = random.choice(eligible_types)
-			if typ.pack_travel and x_in_y(self.level, self.level + 2) and one_in(6 + packs * 2):
+			min_level = typ.level
+			pack_spawn_chance = self.level - min_level + 1
+			if typ.pack_travel and x_in_y(pack_spawn_chance, pack_spawn_chance + 3) and one_in(6 + packs * 3):
 				pack_num = rng(2, 4)
 				if self.spawn_pack(typ.id, pack_num):
 					num_monsters -= rng(1, pack_num)
@@ -175,12 +191,11 @@ class Game:
 	def place_monster(self, typ_id):
 		typ = self.get_mon_type(typ_id)
 		board = self.get_board()
-			
+		
 		for tries in range(150):
 			pos = board.random_pos()
 			if board.passable(pos) and not self.monster_at(pos):
-				break
-			
+				break		
 		
 		return self.place_monster_at(typ_id, pos)
 		
@@ -220,11 +235,11 @@ class Game:
 			return
 		for noise in self.noise_events:
 			for m in self.monsters:
-				m.on_hear_noise(noise)
+				if noise.pos != m.pos:
+					m.on_hear_noise(noise)
 				
 		self.noise_events.clear()
-		
-		
+			
 	def do_turn(self):
 		board = self.get_board()
 		player = self.get_player()
@@ -239,9 +254,7 @@ class Game:
 		self.subtick_timer += used
 		player.energy += used
 		for m in self.monsters:		
-			m.energy += used
-			
-		
+			m.energy += used	
 		
 		self.process_noise_events()	
 		while self.subtick_timer >= 100:
@@ -255,12 +268,8 @@ class Game:
 		random.shuffle(remaining)
 		remaining.sort(key=lambda m: m.energy, reverse=True)
 		
-		
-		
 		while len(remaining) > 0:
 			nextremain = []
-			
-			
 			for m in remaining:
 				if not m.is_alive():
 					continue
@@ -271,7 +280,12 @@ class Game:
 					nextremain.append(m)
 			remaining = nextremain
 		
-		self.remove_dead()	
+		self.remove_dead()
+		self.process_noise_events()
+		
+	def items_at(self, pos):
+		board = self.get_board()
+		return board.get_tile(pos).items	
 			
 	def refresh_mon_pos_cache(self):
 		board = self.get_board()
@@ -336,16 +350,19 @@ class Game:
 				continue
 				
 			seen = player.sees_pos(pos)
+			color = 0 if seen else curses.color_pair(COLOR_GRAY)
 				
 			if tile.wall:
 				symbol = WALL_SYMBOL
+			elif seen and tile.items:
+				item = tile.items[-1]
+				symbol = item.symbol
+				color = curses.color_pair(item.display_color())	
 			elif tile.stair:
 				symbol = STAIR_SYMBOL
 			else:
-				symbol = " " if seen else " "
-			
-			color = 0 if seen else curses.color_pair(COLOR_GRAY)
-			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color	)
+				symbol = " "
+			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color)
 			
 	def draw_stats(self):
 		board = self.get_board()
@@ -441,7 +458,7 @@ class Game:
 		self.draw_walls(offset_y)
 		self.draw_monsters(offset_y)
 		self.draw_stats()
-		self.draw_messages(offset_y)
+		self.draw_messages(offset_y+1)
 		screen.move(20 + offset_y, 0)
 		screen.refresh()
 		
@@ -450,6 +467,20 @@ class Game:
 		
 		if not player.is_resting or self.once_every_num_turns(5):
 			self.draw_board()
+			
+	def input_text(self, msg=""):
+		curses.curs_set(True)
+		curses.echo()
+		screen = self.screen
+		
+		if msg:
+			self.add_message(msg, "input")
+		self.draw_board()
+		screen.move(20, 0)
+		result = screen.getstr()
+		curses.curs_set(False)
+		curses.noecho()
+		return result.decode()
 	
 	def process_input(self):
 		self.maybe_refresh()
@@ -484,6 +515,10 @@ class Game:
 				return True
 		elif char == "v":
 			return self.view_monsters()
+		elif char == "p":
+			return player.pickup()
+		elif char == "u":
+			return player.use_item()
 		elif char == " ":
 			player.use_energy(100)
 			return True
@@ -589,6 +624,52 @@ class Game:
 		self.screen.refresh()
 		while self.getch() != 10: 
 			pass
+			
+	def select_use_item(self):
+		player = self.get_player()
+		screen = self.screen
+		scroll = 0
+		num_items = len(player.inventory)
+		max_scroll = max(0, num_items - 9)
+		
+		can_scroll = max_scroll > 0
+		
+		string = "Use which item? Enter a number from 1 - 9, then press Enter. Press 0 to cancel. "
+		if can_scroll:
+			string += " (W and S keys to scroll)"
+		
+		select = 0
+		
+		
+		while True:
+			screen.erase()
+			screen.addstr(0, 0, string)
+			for i in range(min(num_items, 9)):
+				index = i + scroll
+				
+				item = player.inventory[index]
+				color = curses.A_REVERSE if i == select else 0
+				screen.addstr(i + 2, 0, str(i+1), color)
+				screen.addstr(i + 2, 2, f" - {item.name}")
+			screen.refresh()
+			key = screen.getch()
+			char = chr(key)
+			
+			if can_scroll:
+				if char == "w":
+					scroll -= 1
+				elif char == "s":
+					scroll += 1
+				scroll = clamp(scroll, 0, max_scroll)
+			
+			if char == "0":
+				return None
+			elif char in "123456789":
+				select = int(char) - 1
+			
+			if key == 10:
+				item = player.inventory[scroll + select]
+				return item
 		
 class PopupInfo:
 	
@@ -597,6 +678,14 @@ class PopupInfo:
 		screen = g.screen
 		self.screen = screen.subwin(18, 50, 2, 0)
 		self.lines = []
+		self.scroll = 0
+		
+	def set_scroll(self, num):
+		screen = self.screen
+		h, w = screen.getmaxyx()
+		max_disp = h - 2
+		max_scroll = max(0, len(self.lines) - max_disp)
+		self.scroll = clamp(self.scroll, 0, max_scroll)
 		
 	def add_line(self, line=None):
 		screen = self.screen
@@ -618,6 +707,7 @@ class PopupInfo:
 		max_disp = h - 2
 		
 		for i in range(min(len(self.lines), max_disp)):
-			screen.addstr(i + 1, 1, self.lines[i])
+			ind = i + self.scroll
+			screen.addstr(i + 1, 1, self.lines[ind])
 		
 		screen.refresh()

@@ -11,12 +11,15 @@ COLOR_GREEN = 10
 COLOR_YELLOW = 11
 COLOR_BLUE = 12
 COLOR_CYAN = 14
+COLOR_BLUE1 = 21
+COLOR_DEEP_PINK2 = 167
 
 MSG_TYPES = {
 	"neutral": 0,
 	"good": COLOR_GREEN,
 	"bad": COLOR_RED,
 	"warning": COLOR_YELLOW,
-	"info": COLOR_BLUE
+	"info": COLOR_BLUE,
+	"input": COLOR_CYAN
 }
 

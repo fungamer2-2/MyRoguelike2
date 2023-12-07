@@ -156,46 +156,44 @@ class Monster(Entity):
 		if loudness <= 0:
 			return
 		
-		self.set_target(noise.pos)
+		duration = self.INT * loudness
 		
 		if self.state in ["IDLE", "TRACKING"]:
-			self.state = "TRACKING_SOUND"
-			self.soundf = max(self.soundf, self.INT * loudness)
+			if self.soundf < duration:
+				self.state = "TRACKING_SOUND"
+				self.set_target(noise.pos)
+				self.soundf = duration
+				
+	def check_alerted(self):
+		if one_in(70):
+			return True
+		#Player's stealth check against monster's passive perception
+		g = self.g
+		player = g.get_player()
+		roll = player.stealth_roll()
+		per_mod = (self.WIS-10)/2
+		perception = 10 + per_mod
+		sight = self.type.blindsight
+		if sight and self.distance(player) <= sight.range:
+			perception += 4
+		if self.has_flag("KEEN_SMELL"):
+			mod = max(1 - self.distance(player)/15, 0)
+			perception += 4 * mod
+		perception += self.get_skill("perception")
+		
+		if roll < perception:
+			margin = perception - roll
+			return x_in_y(1, 6 - margin)		
+		return False
 		
 	def tick(self):
 		g = self.g
 		player = g.get_player()
 		
-		if self.state == "IDLE":
-			roll = gauss_roll((player.DEX-10)/2)
-			per_mod = (self.WIS-10)/2
-			perception = 10 + per_mod
-			sight = self.type.blindsight
-			if sight and self.distance(player) <= sight.range:
-				perception += 4
-			if self.has_flag("KEEN_SMELL"):
-				mod = max(1 - self.distance(player)/15, 0)
-				perception += 4 * mod
-			perception += self.get_skill("perception")	
-				
-			alert = False
-			if self.sees(player):
-				auto_fail = one_in(70)
-				if auto_fail or roll < perception:
-					margin = perception - roll
-					if auto_fail or x_in_y(1, 6 - margin):
-						alert = True
-						
-			if alert:
-				self.alerted()
-				self.target_entity(player)
-		elif self.state == "TRACKING":
+		if self.state == "TRACKING":
 			if self.patience > 0:
 				self.patience -= 1
 			
-			if self.pursue_check > 0:
-				self.pursue_check -= 1
-		
 	def do_turn(self):
 		assert self.energy > 0
 		old = self.energy
@@ -460,6 +458,9 @@ class Monster(Entity):
 		self.use_energy(100)
 		return True
 		
+	def perception_roll(self):
+		return self.roll_wisdom() + self.get_skill("perception")
+		
 	def move(self):
 		g = self.g
 		board = g.get_board()
@@ -485,15 +486,17 @@ class Monster(Entity):
 			case "TRACKING":
 				if self.pursue_check > 0:
 					self.idle()
-				elif self.target_pos == self.pos:
-					#Once we reach the target, make a perception check contested by the player's stealth check to determibe the new location
-					player_stealth_roll = gauss_roll((player.DEX-10)/2)
-					perception_roll = gauss_roll((self.WIS-10)/2) + self.get_skill("perception")
-					if perception_roll >= player_stealth_roll:
+					self.pursue_check -= 1
+					if self.pursue_check <= 0:
+						self.clear_target()
+				elif not self.has_target() or self.target_pos == self.pos:
+					#Once we reach the target, make a perception check contested by the player's stealth check to determine the new location
+					if self.perception_roll() >= player.stealth_roll():
 						self.set_target(player.pos)
+						self.patience += rng(1, 3)
 					else:
 						#If we fail, idle around for a few turns instead
-						self.pursue_check = rng(1, 3)
+						self.pursue_check = rng(1, 4)
 						self.idle()
 						
 		

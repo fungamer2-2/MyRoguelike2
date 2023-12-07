@@ -15,6 +15,19 @@ class Entity(ABC):
 		self.HP = self.MAX_HP = 10
 		self.pos = Point()
 		self.energy = 100
+		self.status = {}
+		
+	def has_status(self, name):
+		return name in self.status
+		
+	def add_status(self, name, dur):
+		if not self.has_status(name):
+			self.status[name] = 0
+		self.status[name] += dur*100
+		
+	def remove_status(self, name):
+		if self.has_status(name):
+			del self.status[name]
 		
 	def use_energy(self, amount):
 		self.energy -= amount
@@ -110,3 +123,7 @@ class Entity(ABC):
 	def make_noise(self, volume):
 		g = self.g
 		g.add_noise_event(self.pos, volume)
+		
+	def roll_wisdom(self):
+		mod = (self.WIS-10)/2
+		return gauss_roll(mod)
