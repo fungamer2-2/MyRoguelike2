@@ -249,6 +249,7 @@ class Game:
 			return
 		
 		self.refresh_mon_pos_cache()
+		
 		player.do_turn()
 		
 		self.subtick_timer += used
