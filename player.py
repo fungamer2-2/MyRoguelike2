@@ -63,11 +63,8 @@ class Player(Entity):
 		while self.xp >= self.xp_to_next_level():
 			self.xp -= self.xp_to_next_level()
 			self.xp_level += 1
-			oldmax = self.MAX_HP
 			self.recalc_max_hp()
-			diff = self.MAX_HP - oldmax
 			
-			self.heal(rng(0, diff))
 			
 			if self.xp_level % 3 == 0:
 				num += 1
@@ -154,7 +151,17 @@ class Player(Entity):
 		level_mod = 8 * (self.xp_level - 1)
 		level_mod *= self.CON / 10
 		val = 10 + level_mod
+		if self.has_status("Enlarged"):
+			val *= 1.5
+		elif self.has_status("Reduced"):
+			val *= 0.75
+			
+		oldhp = self.MAX_HP
 		self.MAX_HP = round(val)
+		
+		if self.MAX_HP != oldhp:
+			scale = self.MAX_HP / oldhp
+			self.HP = max(1, math.ceil(scale * self.HP))
 		
 	def move_to(self, pos):
 		if super().move_to(pos):
@@ -254,9 +261,9 @@ class Player(Entity):
 			
 			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
 			if self.has_status("Enlarged"):
-				damage += dice(1, 6)
+				damage += dice(1, 4)
 			elif self.has_status("Reduced"):
-				damage = div_rand(damage, 2)
+				damage = (damage + 1) // 2
 			damage = max(damage, 1)
 			noise = rng(1, 2) + rng(0, round(damage ** 0.65))
 			if sneak_attack:
@@ -281,7 +288,11 @@ class Player(Entity):
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
 			self.make_noise(rng(1, 2))
-		self.use_energy(100)
+			
+		attack_cost = 100
+		if self.has_status("Hasted"):
+			attack_cost = 75
+		self.use_energy(attack_cost)
 		
 		mon.alerted()
 		return True
@@ -324,9 +335,12 @@ class Player(Entity):
 			self.status[name] -= used
 			if self.status[name] <= 0:
 				self.remove_status(name)
+				
 				if name == "Enlarged" or name == "Reduced":
+					self.recalc_max_hp()
 					self.add_msg("Your body returns to normal size.", "info")
-			
+				elif name == "Hasted":
+					self.add_msg("You feel yourself slow down to normal speed.", "info")
 		for mon in self.visible_monsters():
 			if mon.check_alerted():
 				mon.alerted()

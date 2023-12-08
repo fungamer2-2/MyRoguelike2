@@ -26,7 +26,7 @@ class Potion(Item):
 		
 
 class HealingPotion(Potion):
-	description = ""
+	description = "A potion with a glimmering red liquid."
 	
 	def __init__(self):
 		super().__init__()
@@ -40,7 +40,7 @@ class HealingPotion(Potion):
 		return True
 
 class EnlargementPotion(Potion):
-	description = ""
+	description = "A potion with a light red liquid."
 	
 	def __init__(self):
 		super().__init__()
@@ -50,7 +50,9 @@ class EnlargementPotion(Potion):
 		player.add_msg("You drink the enlargement potion.")
 		player.add_msg("You feel your entire body grow in size.", "info")	
 		player.remove_status("Reduced")
-		player.add_status("Enlarged", random.randint(60, 200))
+		player.add_status("Enlarged", rng(100, 200))
+		player.use_energy(150)
+		player.recalc_max_hp()
 		return True
 
 class ShrinkingPotion(Potion):
@@ -67,5 +69,30 @@ class ShrinkingPotion(Potion):
 		player.add_msg("You drink the shrink potion.")
 		player.add_msg("You feel your entire body shrink in size.", "info")	
 		player.remove_status("Enlarged")
-		player.add_status("Reduced", random.randint(60, 200))
+		player.add_status("Reduced", rng(100, 200))
+		player.use_energy(150)
+		player.recalc_max_hp()
 		return True
+		
+class SpeedPotion(Potion):
+	description = "A potion with a blue liquid that appears to have a slight glow."
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "speed potion"
+		
+	def display_color(self):
+		return COLOR_BLUE
+			
+	def use(self, player):
+		player.add_msg("You drink the speed potion.")
+		if player.has_status("Hasted"):
+			player.add_msg("You feel that your speed lasts longer.", "info")
+			dur = rng(10, 40)
+		else:
+			player.add_msg("You feel your movements speed up as time appears to slow down.", "good")
+			dur = rng(20, 60)
+		player.use_energy(100)		
+		player.add_status("Hasted", dur)	
+		return True
+

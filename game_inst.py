@@ -95,12 +95,12 @@ class Game:
 	def place_items(self):
 		board = self.get_board()
 		
-		for _ in range(rng(1, 3)):
+		for _ in range(rng(1, 5)):
 			pos = board.random_passable()
 			
 			typ = HealingPotion
 			if one_in(3):
-				typ = random.choice([EnlargementPotion, ShrinkingPotion])
+				typ = random.choice([EnlargementPotion, ShrinkingPotion, SpeedPotion])
 			board.place_item_at(pos, typ())
 			
 	def place_monsters(self):
