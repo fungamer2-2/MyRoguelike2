@@ -43,9 +43,18 @@ class Entity(ABC):
 		if not self.is_alive():
 			dex = 0
 		return 10 + (dex - 10) / 2
+		
+	def base_speed(self):
+		return 100
 	
 	def get_speed(self):
-		return 100
+		return round(self.base_speed() * self.speed_mult())
+		
+	def speed_mult(self):
+		mult = 1
+		if self.has_status("Slowed"):
+			mult = 0.5
+		return mult
 	
 	@abstractmethod
 	def get_name(self, capitalize=False):

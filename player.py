@@ -32,12 +32,11 @@ class Player(Entity):
 			if self.has_status("Hasted"):
 				bonus += 2
 			if self.has_status("Enlarged"):
-				bonus *= 0.75
+				bonus *= 0.7
 			elif self.has_status("Reduced"):
-				bonus *= 1.25
+				bonus *= 1.3
 		
-		
-		return bonus
+		return bonus + 5
 		
 	def add_to_inventory(self, item):
 		self.inventory.append(item)
@@ -122,11 +121,11 @@ class Player(Entity):
 				if (m := g.monster_at(pos)):
 					yield m
 					
-	def get_speed(self):
-		speed = 100
+	def speed_mult(self):
+		mult = super().speed_mult()
 		if self.has_status("Hasted"):
-			speed *= 2
-		return speed
+			mult *= 2
+		return mult
 		
 	def get_name(self, capitalize=False):
 		return "You" if capitalize else "you"
@@ -140,7 +139,7 @@ class Player(Entity):
 			mod += 5
 		
 		if self.has_status("Reduced"):
-			mod += 1
+			mod += 1.5
 		return mod
 		
 	def regen_rate(self):
@@ -154,7 +153,7 @@ class Player(Entity):
 		if self.has_status("Enlarged"):
 			val *= 1.5
 		elif self.has_status("Reduced"):
-			val *= 0.75
+			val *= 0.7
 			
 		oldhp = self.MAX_HP
 		self.MAX_HP = round(val)
@@ -192,7 +191,6 @@ class Player(Entity):
 		item = g.select_use_item()
 		if not item:
 			return False
-		self.add_msg(f"You have selected {item.name}")
 		used = item.use(self)
 		if used:
 			self.inventory.remove(item)
@@ -261,7 +259,7 @@ class Player(Entity):
 			
 			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
 			if self.has_status("Enlarged"):
-				damage += dice(1, 4)
+				damage += dice(1, 6)
 			elif self.has_status("Reduced"):
 				damage = (damage + 1) // 2
 			damage = max(damage, 1)
@@ -277,7 +275,6 @@ class Player(Entity):
 				noise = div_rand(noise, 2)
 			
 			self.make_noise(noise)
-			self.add_msg(f"Made combat sound of {noise}")
 			self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
 			
 			mon.take_damage(damage)
@@ -349,7 +346,7 @@ class Player(Entity):
 	def stealth_roll(self):
 		stealth = (self.DEX-10)/2
 		if self.has_status("Reduced"):
-			stealth += 2
+			stealth += 3
 		elif self.has_status("Enlarged"):
-			stealth -= 2
+			stealth -= 3
 		return gauss_roll(stealth)	

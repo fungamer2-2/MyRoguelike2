@@ -95,12 +95,17 @@ class Game:
 	def place_items(self):
 		board = self.get_board()
 		
+		potions = [
+			[HealingPotion, 120],
+			[EnlargementPotion, 25],
+			[ShrinkingPotion, 25],
+			[SpeedPotion, 35]
+		]
+		
 		for _ in range(rng(1, 5)):
 			pos = board.random_passable()
 			
-			typ = HealingPotion
-			if one_in(3):
-				typ = random.choice([EnlargementPotion, ShrinkingPotion, SpeedPotion])
+			typ = random_weighted(potions)
 			board.place_item_at(pos, typ())
 			
 	def place_monsters(self):
@@ -249,7 +254,6 @@ class Game:
 			return
 		
 		self.refresh_mon_pos_cache()
-		
 		player.do_turn()
 		
 		self.subtick_timer += used
@@ -258,12 +262,12 @@ class Game:
 			m.energy += used	
 		
 		self.process_noise_events()	
+		
 		while self.subtick_timer >= 100:
 			self.subtick_timer -= 100
 			self.tick += 1
 			for m in self.monsters:
 				m.tick()
-				
 			
 		remaining = self.monsters.copy()
 		random.shuffle(remaining)

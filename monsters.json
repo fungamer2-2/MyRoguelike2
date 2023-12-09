@@ -122,5 +122,25 @@
 		"pack_travel": true,
 		"flags": [ "KEEN_SMELL" ],
 		"attack_msg": "<monster> bites <target>"
+	},
+	{
+		"id": "giant_centipede",
+		"name": "giant centipede",
+		"symbol": "m",
+		"STR": 5,
+		"DEX": 14,
+		"CON": 12,
+		"INT": 1,
+		"WIS": 7,
+		"CHA": 3,
+		"HP": 5,
+		"to_hit": 4,
+		"level": 5,
+		"diff": 3,
+		"use_dex_melee": true,
+		"size": "small",
+		"speed": 90,
+		"base_damage": "1d4",
+		"attack_msg": "<monster> bites <target>"
 	}
 ]

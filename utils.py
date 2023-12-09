@@ -52,6 +52,9 @@ def div_rand(x, y):
 	mod = x % y
 	return sign * (x//y + (rng(1, y) <= mod))
  
+def random_weighted(entries):
+	values, weights = list(zip(*entries))
+	return random.choices(values, weights=weights)[0]
 	
 def dice(num, sides):
 	if sides == 1:

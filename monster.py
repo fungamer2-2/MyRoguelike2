@@ -58,7 +58,7 @@ class Monster(Entity):
 		skills = self.type.skills
 		return skills.get("name", 0)
 		
-	def get_speed(self):
+	def base_speed(self):
 		return self.type.speed
 		
 	def get_diff_level(self):
