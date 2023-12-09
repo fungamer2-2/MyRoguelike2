@@ -48,10 +48,17 @@ class EnlargementPotion(Potion):
 		
 	def use(self, player):
 		player.add_msg("You drink the enlargement potion.")
-		player.add_msg("You feel your entire body grow in size.", "info")	
+		if player.has_status("Enlarged"):
+			player.add_msg("You feel that your enlarged size will last longer.", "info")
+			dur = rng(50, 100)
+		else:
+			player.add_msg("You feel your entire body grow in size.", "info")
+			player.use_energy(50)
+			dur = rng(150, 300)	
+		
 		player.remove_status("Reduced")
-		player.add_status("Enlarged", rng(100, 200))
-		player.use_energy(150)
+		player.add_status("Enlarged", dur)
+		player.use_energy(100)
 		player.recalc_max_hp()
 		return True
 
@@ -66,11 +73,18 @@ class ShrinkingPotion(Potion):
 		return COLOR_CYAN
 		
 	def use(self, player):
-		player.add_msg("You drink the shrink potion.")
-		player.add_msg("You feel your entire body shrink in size.", "info")	
+		player.add_msg("You drink the shrinking potion.")
+		if player.has_status("Reduced"):
+			player.add_msg("You feel that your reduced size will last longer.", "info")
+			dur = rng(50, 100)
+		else:
+			player.add_msg("You feel your entire body shrink in size.", "info")
+			player.use_energy(50)
+			dur = rng(150, 300)	
+			
 		player.remove_status("Enlarged")
-		player.add_status("Reduced", rng(100, 200))
-		player.use_energy(150)
+		player.add_status("Reduced", dur)
+		player.use_energy(100)
 		player.recalc_max_hp()
 		return True
 		
@@ -87,7 +101,7 @@ class SpeedPotion(Potion):
 	def use(self, player):
 		player.add_msg("You drink the speed potion.")
 		if player.has_status("Hasted"):
-			player.add_msg("You feel that your speed lasts longer.", "info")
+			player.add_msg("You feel that your speed will last longer.", "info")
 			dur = rng(10, 40)
 		else:
 			player.add_msg("You feel your movements speed up as time appears to slow down.", "good")
