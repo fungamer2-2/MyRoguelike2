@@ -34,7 +34,7 @@ class Player(Entity):
 			if self.has_status("Enlarged"):
 				bonus *= 0.7
 			elif self.has_status("Reduced"):
-				bonus *= 1.3
+				bonus *= 1.4
 		return bonus + 5
 		
 	def add_to_inventory(self, item):
@@ -348,7 +348,7 @@ class Player(Entity):
 	def stealth_roll(self):
 		stealth = (self.DEX-10)/2
 		if self.has_status("Reduced"):
-			stealth += 3
+			stealth += 4
 		elif self.has_status("Enlarged"):
 			stealth -= 3
 		return gauss_roll(stealth)	
