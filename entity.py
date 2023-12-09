@@ -15,6 +15,7 @@ class Entity(ABC):
 		self.HP = self.MAX_HP = 10
 		self.pos = Point()
 		self.energy = 100
+		self.poison = 0
 		self.status = {}
 		
 	def has_status(self, name):

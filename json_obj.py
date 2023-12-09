@@ -139,6 +139,7 @@ class MonsterType(JSONObject):
 		obj.load_required(d, "level", int)
 		obj.load_required(d, "diff", int)
 		obj.load_required(d, "to_hit", int)
+		obj.load_optional(d, "armor", 0, int)
 		obj.load_optional(d, "speed", 100, int)
 		obj.load_optional(d, "size", "medium", str)
 		obj.load_optional(d, "attack_msg", "<monster> attacks <target>", str)

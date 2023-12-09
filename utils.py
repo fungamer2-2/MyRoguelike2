@@ -51,6 +51,9 @@ def div_rand(x, y):
 	y = abs(y)
 	mod = x % y
 	return sign * (x//y + (rng(1, y) <= mod))
+
+def mult_rand_frac(val, x, y):
+	return div_rand(val * x, y)
  
 def random_weighted(entries):
 	values, weights = list(zip(*entries))
@@ -77,6 +80,10 @@ def display_bar(val, max, width):
 		bars += "."
 	bars += " "*(width-len(bars))
 	return f"[{bars}]"
+	
+def apply_armor(damage, armor):
+	prot = rng(0, armor) + rng(0, armor)
+	return max(damage - prot, 0)
 	
 class Dice:
 		

@@ -35,7 +35,6 @@ class Player(Entity):
 				bonus *= 0.7
 			elif self.has_status("Reduced"):
 				bonus *= 1.3
-		
 		return bonus + 5
 		
 	def add_to_inventory(self, item):
@@ -63,8 +62,7 @@ class Player(Entity):
 			self.xp -= self.xp_to_next_level()
 			self.xp_level += 1
 			self.recalc_max_hp()
-			
-			
+				
 			if self.xp_level % 3 == 0:
 				num += 1
 				
@@ -327,6 +325,10 @@ class Player(Entity):
 		while self.regen_tick >= 1:
 			self.regen_tick -= 1
 			self.heal(1)
+			
+		if self.poison > 0:
+			amount = 1 + div_rand(self.poison, 12)
+			dmg = mult_rand_frac(amount, used, 100)
 		
 		for name in list(self.status.keys()):
 			self.status[name] -= used
