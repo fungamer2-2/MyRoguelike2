@@ -38,7 +38,6 @@
 		"size": "tiny",
 		"speed": 130,
 		"attack_msg": "<monster> claws <target>",
-		"flags": [ "KEEN_SMELL" ],
 		"skills": { "perception": 3 }		
 	},
 	{
@@ -76,9 +75,9 @@
 		"diff": 1,
 		"speed": 135,
 		"base_damage": "1d4",
-		"pack_travel": true,
 		"attack_msg": "<monster> bites <target>",
-		"skills": { "perception": 3 }
+		"skills": { "perception": 3 },
+		"flags": [ "PACK_TRAVEL" ]
 	},
 	{
 		"id": "kobold",
@@ -98,8 +97,8 @@
 		"size": "small",
 		"speed": 100,
 		"base_damage": "1d4",
-		"pack_travel": true,
-		"attack_msg": "<monster> hits <target> with a dagger"
+		"attack_msg": "<monster> hits <target> with a dagger",
+		"flags": [ "PACK_TRAVEL" ]
 	},
 	{
 		"id": "giant_rat",
@@ -119,8 +118,7 @@
 		"size": "small",
 		"speed": 100,
 		"base_damage": "1d4",
-		"pack_travel": true,
-		"flags": [ "KEEN_SMELL" ],
+		"flags": [ "PACK_TRAVEL" ],
 		"attack_msg": "<monster> bites <target>"
 	},
 	{
@@ -135,13 +133,36 @@
 		"CHA": 3,
 		"HP": 5,
 		"to_hit": 4,
-		"level": 5,
+		"level": 7,
 		"diff": 3,
 		"armor": 1,
 		"use_dex_melee": true,
 		"size": "small",
 		"speed": 90,
 		"base_damage": "1d4",
-		"attack_msg": "<monster> bites <target>"
+		"attack_msg": "<monster> bites <target>",
+		"blindsight": { "range": 6 },
+		"poison": { "potency": 11, "max_damage": 20, "slowing": true }
+	},
+	{
+		"id": "giant_poisonous snake",
+		"name": "giant poisonous snake",
+		"symbol": "S",
+		"STR": 10,
+		"DEX": 18,
+		"CON": 13,
+		"INT": 2,
+		"WIS": 10,
+		"CHA": 3,
+		"HP": 11,
+		"to_hit": 6,
+		"level": 8,
+		"diff": 3,
+		"use_dex_melee": true,
+		"speed": 100,
+		"base_damage": "1d4",
+		"attack_msg": "<monster> bites <target>",
+		"poison": { "potency": 11, "max_damage": 21 },
+		"blindsight": { "range": 2 }
 	}
 ]

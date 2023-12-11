@@ -18,7 +18,6 @@ class Monster(Entity):
 		self.patience = 0
 		self.pursue_check = 0
 		self.path = deque()
-		self.pack = True
 		self.to_hit = 0
 		self.soundf = 0
 		self.damage = Dice(0,0,0)
@@ -46,7 +45,6 @@ class Monster(Entity):
 		m.WIS = typ.WIS
 		m.CHA = typ.CHA
 		m.HP = m.MAX_HP = typ.HP
-		m.pack = typ.pack_travel
 		m.to_hit = typ.to_hit
 		m.damage = typ.base_damage
 		return m
@@ -79,6 +77,8 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		
+		is_pack = self.has_flag("PACK_TRAVEL")
+		
 		def passable_func(p):
 			return p == pos or board.passable(p)
 		
@@ -86,7 +86,7 @@ class Monster(Entity):
 			cost = 1
 			if (c := g.monster_at(p)):
 				cost += 2
-			if self.pack:
+			if is_pack:
 				num = 0
 				for m in g.monsters_in_radius(p, 1):
 					if self is not m and self.is_ally(m):
@@ -193,9 +193,20 @@ class Monster(Entity):
 		if self.state == "TRACKING":
 			if self.patience > 0:
 				self.patience -= 1
+		
+		if self.poison > 0:
+			amount = 1 + div_rand(self.poison, 10)
+			amount = min(amount, self.poison)
+			self.take_damage(amount)	
+			self.poison -= amount
+			if self.poison < 0:
+				self.poison = 0
 			
 	def do_turn(self):
 		assert self.energy > 0
+		if not self.can_act():
+			self.energy = 0
+			return
 		old = self.energy
 		self.move()
 		if self.energy == old:
@@ -224,6 +235,12 @@ class Monster(Entity):
 		#TODO: Invisibility check
 		return True
 		
+	def speed_mult(self):
+		mult = super().speed_mult()
+		if self.state == "IDLE":
+			mult *= 0.75
+		return mult
+		
 	def set_rand_target(self):
 		g = self.g
 		board = g.get_board()
@@ -243,7 +260,7 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		
-		if self.pack and not one_in(4) and self.set_pack_target_pos():
+		if not one_in(4) and self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos():
 			return
 			
 		self.set_rand_target()
@@ -366,9 +383,9 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		if not self.is_aware():
-			if self.pack: #If we alert one member of the pack, alert the entire pack.
+			if self.has_flag("PACK_TRAVEL"): #If we alert one member of the pack, alert the entire pack.
 				for mon in g.monsters_in_radius(self.pos, 7):	
-					if self.is_ally(mon) and one_in(2):
+					if self.is_ally(mon):
 						mon.set_state("AWARE")
 			if self.state == "IDLE":
 				self.set_state("AWARE")
@@ -393,12 +410,12 @@ class Monster(Entity):
 			case "small":
 				mod += 1
 		
-		if self.pack:
+		if self.has_flag("PACK_TRAVEL"):
 			allies = 0
 			for p in board.points_in_radius(self.pos, 1):
 				if p == self.pos:
 					continue
-				mon = g.monster_at(p)
+				mon = g.entity_at(p)
 				if mon and self.is_ally(mon):
 					allies += 1
 					if allies >= 2:
@@ -421,6 +438,9 @@ class Monster(Entity):
 			case "gargantuan":
 				ev -= 4
 		return ev
+		
+	def get_armor(self):
+		return self.type.armor
 			
 	def attack_pos(self, pos):
 		g = self.g
@@ -452,7 +472,23 @@ class Monster(Entity):
 			
 			self.add_msg_if_u_see(self, f"{msg}.", msg_type)
 			c.take_damage(damage)
-		else:
+			poison_typ = self.type.poison
+			if poison_typ:
+				amount = poison_typ.max_damage
+				eff_con = random.gauss(c.CON, 2.5)
+				
+				eff_potency = poison_typ.potency - round((eff_con - 10)/1.3)
+				eff_potency = clamp(eff_potency, 0, 20)
+				if eff_potency > 0:
+					amount = mult_rand_frac(amount, eff_potency, 20)
+					typ = "bad" if c.is_player() else "neutral"
+					dmg = rng(0, amount)
+					if dmg > 0:
+						c.add_msg_u_or_mons("You are poisoned!", f"{self.get_name(True)} appears to be poisoned.", typ)
+						c.poison += dmg
+						if poison_typ.slowing and x_in_y(dmg, dmg+3):
+							c.add_status("Slowed", rng(dmg, dmg*4))
+		else:			
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {c.get_name()}.")
 		
 		self.use_energy(100)
@@ -468,8 +504,7 @@ class Monster(Entity):
 		
 		match self.state:
 			case "IDLE":
-				if not one_in(4):
-					self.idle()				
+				self.idle()				
 			case "AWARE":	
 				if self.sees(player):
 					self.target_entity(player)
@@ -493,7 +528,7 @@ class Monster(Entity):
 					#Once we reach the target, make a perception check contested by the player's stealth check to determine the new location
 					if self.perception_roll() >= player.stealth_roll():
 						self.set_target(player.pos)
-						self.patience += rng(1, 3)
+						self.patience += rng(0, 3)
 					else:
 						#If we fail, idle around for a few turns instead
 						self.pursue_check = rng(1, 4)

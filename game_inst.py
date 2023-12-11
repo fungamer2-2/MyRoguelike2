@@ -123,7 +123,7 @@ class Game:
 			typ = random.choice(eligible_types)
 			min_level = typ.level
 			pack_spawn_chance = self.level - min_level + 1
-			if typ.pack_travel and x_in_y(pack_spawn_chance, pack_spawn_chance + 3) and one_in(6 + packs * 3):
+			if "PACK_TRAVEL" in typ.flags and x_in_y(pack_spawn_chance, pack_spawn_chance + 3) and one_in(6 + packs * 3):
 				pack_num = rng(2, 4)
 				if self.spawn_pack(typ.id, pack_num):
 					num_monsters -= rng(1, pack_num)
@@ -499,6 +499,10 @@ class Game:
 			else:
 				player.use_energy(100)
 			return True
+			
+		if not player.can_act():
+			player.use_energy(100)
+			return True
 		
 		code = self.getch()
 		char = chr(code)
@@ -575,7 +579,7 @@ class Game:
 		info.add_line()
 		if monster.state == "IDLE":
 			info.add_line("It hasn't noticed your presence yet.")
-		if monster.pack:
+		if monster.has_flag("PACK_TRAVEL"):
 			info.add_line("This creature travels in packs and takes advantage of its nearby allies to attack targets more easily.")
 		
 		mon_speed = monster.get_speed()

@@ -35,7 +35,7 @@ class HealingPotion(Potion):
 	def use(self, player):
 		player.add_msg("You drink the healing potion.")
 		player.add_msg("You begin to feel more restored.", "good")	
-		player.heal(dice(3, 4) + 3)
+		player.heal(dice(4, 4) + 2)
 		player.use_energy(100)
 		return True
 

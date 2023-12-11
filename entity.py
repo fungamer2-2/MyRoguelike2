@@ -56,6 +56,12 @@ class Entity(ABC):
 		if self.has_status("Slowed"):
 			mult = 0.5
 		return mult
+		
+	def can_act(self):
+		return self.energy > 0 and not self.has_status("Paralyzed")
+		
+	def get_armor(self):
+		return 0
 	
 	@abstractmethod
 	def get_name(self, capitalize=False):
@@ -64,6 +70,14 @@ class Entity(ABC):
 	def add_msg(self, text, typ="neutral"):
 		g = self.g
 		g.add_message(text, typ)
+		
+	def add_msg_u_or_mons(self, u_msg, mon_msg, typ="neutral"):
+		g = self.g
+		player = g.get_player()
+		if self.is_player():
+			self.add_msg(u_msg, typ)
+		elif self.is_monster() and player.sees(self):
+			self.add_msg(mon_msg, typ)
 		
 	def add_msg_if_u_see(self, other, text, typ="neutral"):
 		g = self.g

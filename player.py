@@ -253,15 +253,9 @@ class Player(Entity):
 		
 		roll = gauss_roll(mod)
 		evasion = mon.calc_evasion()
-		if roll >= evasion:
-			
+		if roll >= evasion:	
 			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
-			if self.has_status("Enlarged"):
-				damage += dice(1, 6)
-			elif self.has_status("Reduced"):
-				damage = (damage + 1) // 2
-			damage = max(damage, 1)
-			noise = rng(1, 2) + rng(0, round(damage ** 0.65))
+			
 			if sneak_attack:
 				msg = [
 					f"You catch {mon.get_name()} off-guard!",
@@ -270,6 +264,18 @@ class Player(Entity):
 				]
 				self.add_msg(random.choice(msg))
 				damage += dice(1, 6)
+				
+			if self.has_status("Enlarged"):
+				damage += dice(1, 6)
+			elif self.has_status("Reduced"):
+				damage = (damage + 1) // 2
+		
+			damage = apply_armor(damage, mon.get_armor())	
+			damage = max(damage, 1)
+			
+			noise = rng(1, 2) + rng(0, round(damage ** 0.65))
+			
+			if sneak_attack:
 				noise = div_rand(noise, 2)
 			
 			self.make_noise(noise)
@@ -277,7 +283,7 @@ class Player(Entity):
 			
 			mon.take_damage(damage)
 			if mon.is_alive():
-				self.add_msg(f"It has {mon.HP}/{mon.MAX_HP}.")
+				self.add_msg(f"It has {mon.HP}/{mon.MAX_HP} HP.")
 			else:
 				self.on_defeat_monster(mon)
 		else:
@@ -317,6 +323,12 @@ class Player(Entity):
 			return self.attack_pos(target)
 		return False
 	
+	def add_status(self, name, dur):
+		if not self.has_status(name):
+			if name == "Slowed":
+				self.add_msg("Your movements begin to feel sluggish.", "bad")
+		super().add_status(name, dur)
+	
 	def do_turn(self):
 		used = self.energy_used
 		subt = used / 100
@@ -329,7 +341,14 @@ class Player(Entity):
 		if self.poison > 0:
 			amount = 1 + div_rand(self.poison, 12)
 			dmg = mult_rand_frac(amount, used, 100)
-		
+			dmg = min(dmg, self.poison)
+			self.take_damage(dmg)	
+			self.poison -= dmg
+			if self.poison < 0:
+				self.poison = 0
+			if dmg > 0 and (one_in(4) or x_in_y(self.poison, self.MAX_HP)):
+				self.add_msg("You feel sick due to the poison in your system.", "bad")
+				
 		for name in list(self.status.keys()):
 			self.status[name] -= used
 			if self.status[name] <= 0:
@@ -340,6 +359,8 @@ class Player(Entity):
 					self.add_msg("Your body returns to normal size.", "info")
 				elif name == "Hasted":
 					self.add_msg("You feel yourself slow down to normal speed.", "info")
+				elif name == "Slowed":
+					self.add_msg("Your movements no longer feel sluggish.", "good")
 		for mon in self.visible_monsters():
 			if mon.check_alerted():
 				mon.alerted()

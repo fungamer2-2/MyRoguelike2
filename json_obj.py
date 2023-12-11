@@ -115,9 +115,21 @@ class Blindsight(JSONObject):
 	@classmethod
 	def load(cls, d):
 		obj = cls()
-		obj.load_required(d, "range")
+		obj.load_required(d, "range", int)
 		obj.load_optional(d, "blind_beyond", False)
 		return obj
+
+
+class Poison(JSONObject):
+	
+	@classmethod
+	def load(cls, d):
+		obj = cls()
+		obj.load_required(d, "max_damage", int)
+		obj.load_required(d, "potency", int)
+		obj.load_optional(d, "slowing", False, bool)
+		return obj
+
 
 speed_names = ["tiny", "small", "medium", "large", "huge", "gargantuan"]		
 
@@ -146,16 +158,23 @@ class MonsterType(JSONObject):
 		obj.load_optional(d, "use_dex_melee", False, bool)
 		obj.load_optional(d, "flags", [])
 		obj.load_optional(d, "skills", {}, dict)
+		
 		dam = obj.get_optional(d, "base_damage", "0", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		
-		obj.load_optional(d, "pack_travel", False, bool)
 		obj.load_optional(d, "blindsight", False, (bool, dict))
 		
 		if obj.blindsight != False:
 			if type(obj.blindsight) != dict:
 				raise TypeError("blindsight field must be a dict or False")
 			obj.load_from("blindsight", Blindsight)
+		
+		obj.load_optional(d, "poison", False, (bool, dict))
+		
+		if obj.poison != False:
+			if type(obj.poison) != dict:
+				raise TypeError("poison field must be a dict or False")
+			obj.load_from("poison", Poison)
 			
 		return obj
 			
