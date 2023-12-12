@@ -177,7 +177,19 @@ class MonsterType(JSONObject):
 			obj.load_from("poison", Poison)
 			
 		return obj
+		
+class EffectType(JSONObject):
 			
+	@classmethod
+	def load(cls, d):
+		obj = cls()
+		obj.load_required(d, "name", str)
+		obj.load_required(d, "type", str)
+		obj.load_required(d, "apply_msg", str)
+		obj.load_required(d, "extend_msg", str)
+		obj.load_required(d, "remove_msg", str)
+		return obj
+		
 def load_monster_types():
 	mon_types = {}
 	f = open("monsters.json", "r")
@@ -189,4 +201,21 @@ def load_monster_types():
 		typ = MonsterType.load(mon)
 		mon_types[mon_id] = typ
 	return mon_types
+	
+def load_effect_types():
+	eff_types = {}
+	f = open("effects.json", "r")
+	data = json.load(f)
+	for effect in data:
+		name = effect["name"]
+		if name in eff_types:
+			raise ValueError(f"duplicate effect name {name!r}")
+		typ = EffectType.load(effect)
+		eff_types[name] = typ
+	return eff_types
+	
+	
+
+				
+
 			

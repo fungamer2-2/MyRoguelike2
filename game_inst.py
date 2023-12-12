@@ -1,4 +1,4 @@
-from json_obj import load_monster_types
+from json_obj import *
 from board import Board
 from entity import Entity
 from monster import Monster
@@ -20,6 +20,7 @@ class Game:
 		self.msg_log = MessageLog(MESSAGE_LOG_CAPACITY)
 		self.window_init = True
 		self.mon_types = {}
+		self.eff_types = {}
 		self.level = 1
 		self.subtick_timer = 0
 		self.tick = 0
@@ -42,7 +43,20 @@ class Game:
 			error = ValueError(f"invalid monster type {typ!r}")
 			error.add_note(f"Valid monster types are: {', '.join(valid_types)}")
 			raise error
-		
+			
+	def check_effect_type(self, name):
+		if name not in self.eff_types:
+			valid_types = sorted(self.eff_types.keys())
+			error = ValueError(f"invalid effect name {name!r}")
+			error.add_note(f"Valid effect names are: {', '.join(valid_types)}")
+			raise error
+	
+	def load_monsters(self):
+		self.mon_types = load_monster_types()
+	
+	def load_effects(self):
+		self.eff_types = load_effect_types()	
+	
 	def get_mon_type(self, typ):
 		self.check_mon_type(typ)
 		return self.mon_types[typ]
@@ -50,6 +64,10 @@ class Game:
 	def get_all_monster_types(self):
 		for typ in self.mon_types.values():
 			yield typ
+		
+	def get_effect_type(self, name):
+		self.check_effect_type(name)
+		return self.eff_types[name]
 		
 	def add_message(self, text, typ="neutral"):
 		self.msg_log.add_message(text, typ)
@@ -70,10 +88,14 @@ class Game:
 		curses.noecho()
 		curses.curs_set(False)
 		Entity.g = self
-		self.load_monsters()
 		
+		self.load_json_data()	
 		self.generate_level()		
 		self.draw_board()
+		
+	def load_json_data(self):
+		self.load_monsters()
+		self.load_effects()
 		
 	def next_level(self):
 		self.level += 1
@@ -204,9 +226,8 @@ class Game:
 		
 		return self.place_monster_at(typ_id, pos)
 		
-	def load_monsters(self):
-		self.mon_types = load_monster_types()
-		
+	
+	
 	def entity_at(self, pos):
 		board = self.get_board()
 		return board.get_collision_cache(pos)
@@ -491,6 +512,7 @@ class Game:
 		self.maybe_refresh()
 				
 		player = self.get_player()
+		board = self.get_board()
 		
 		if player.is_resting:
 			if player.HP >= player.MAX_HP:

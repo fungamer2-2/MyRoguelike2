@@ -34,7 +34,7 @@ class Player(Entity):
 			if self.has_status("Enlarged"):
 				bonus *= 0.7
 			elif self.has_status("Reduced"):
-				bonus *= 1.4
+				bonus *= 1.3
 		return bonus + 5
 		
 	def add_to_inventory(self, item):
@@ -94,6 +94,7 @@ class Player(Entity):
 						msg = "You feel more charismatic."
 			
 				self.add_msg(msg, "good")
+				
 	def calc_fov(self):
 		g = self.g
 		board = g.get_board()
@@ -110,14 +111,9 @@ class Player(Entity):
 		
 	def visible_monsters(self):
 		g = self.g
-		if len(g.monsters) < len(self.fov):
-			for m in g.monsters:
-				if self.sees(m):
-					yield m
-		else:
-			for pos in self.fov:
-				if (m := g.monster_at(pos)):
-					yield m
+		for m in g.monsters:
+			if self.sees(m):
+				yield m
 					
 	def speed_mult(self):
 		mult = super().speed_mult()
@@ -323,13 +319,22 @@ class Player(Entity):
 			return self.attack_pos(target)
 		return False
 	
-	def add_status(self, name, dur):
-		if not self.has_status(name):
-			if name == "Slowed":
-				self.add_msg("Your movements begin to feel sluggish.", "bad")
+	def add_status(self, name, dur, silent=False):
+		g = self.g
+		eff_type = g.get_effect_type(name)
+		if not silent:
+			if self.has_status(name):
+				msg_type = "info"
+				if eff_type.type == "bad":
+					msg_type = "bad"
+				self.add_msg(eff_type.extend_msg, msg_type)	
+			else:
+				self.add_msg(eff_type.apply_msg, eff_type.type)
 		super().add_status(name, dur)
 	
 	def do_turn(self):
+		g = self.g
+		
 		used = self.energy_used
 		subt = used / 100
 		self.energy_used = 0
@@ -354,14 +359,21 @@ class Player(Entity):
 			if self.status[name] <= 0:
 				self.remove_status(name)
 				
+				eff = g.get_effect_type(name)
+				typ = eff.type
+				msg_type = "neutral"
+				if typ in ["good", "info"]:
+					msg_type = "info"
+				elif typ == "bad":
+					msg_type = "good"
+				
+				self.add_msg(eff.remove_msg, msg_type)
+				
 				if name == "Enlarged" or name == "Reduced":
 					self.recalc_max_hp()
-					self.add_msg("Your body returns to normal size.", "info")
-				elif name == "Hasted":
-					self.add_msg("You feel yourself slow down to normal speed.", "info")
-				elif name == "Slowed":
-					self.add_msg("Your movements no longer feel sluggish.", "good")
+					
 		for mon in self.visible_monsters():
+			name = mon.type.name
 			if mon.check_alerted():
 				mon.alerted()
 				mon.target_entity(self)

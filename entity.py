@@ -19,6 +19,8 @@ class Entity(ABC):
 		self.status = {}
 		
 	def has_status(self, name):
+		g = self.g
+		g.check_effect_type(name)
 		return name in self.status
 		
 	def add_status(self, name, dur):
@@ -27,6 +29,7 @@ class Entity(ABC):
 		self.status[name] += dur*100
 		
 	def remove_status(self, name):
+		
 		if self.has_status(name):
 			del self.status[name]
 		
@@ -58,7 +61,7 @@ class Entity(ABC):
 		return mult
 		
 	def can_act(self):
-		return self.energy > 0 and not self.has_status("Paralyzed")
+		return not self.has_status("Paralyzed")
 		
 	def get_armor(self):
 		return 0

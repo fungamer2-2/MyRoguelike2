@@ -1,0 +1,38 @@
+[
+	{
+	  "name": "Hasted",
+	  "type": "good",
+	  "apply_msg": "You feel your movements speed up as time appears to slow down.",
+	  "extend_msg": "You feel that your speed will last longer.",
+	  "remove_msg": "You feel yourself slow down to normal speed."
+	},
+	{
+		"name": "Slowed",
+		"type": "bad",
+		"apply_msg": "Your movements begin to feel sluggish.",
+		"extend_msg": "Your movements feel even more sluggish.",
+		"remove_msg": "You regain your speed."
+	},
+	{
+		"name": "Enlarged",
+		"type": "info",
+		"apply_msg": "You feel your entire body grow in size.",
+		"extend_msg": "You feel that your enlarged size will last longer.",
+		"remove_msg": "Your body returns to normal size."
+	},
+	{
+		"name": "Reduced",
+		"type": "info",
+		"apply_msg": "You feel your entire body shrink in size.",
+		"extend_msg": "You feel that your reduced size will last longer.",
+		"remove_msg": "Your body returns to normal size."
+	},
+	{
+		"name": "Paralyzed",
+		"type": "bad",
+		"apply_msg": "You suddenly become unable to move!",
+		"extend_msg": "You feel even more paralyzed.",
+		"remove_msg": "You can finally move again."
+	}
+	
+]

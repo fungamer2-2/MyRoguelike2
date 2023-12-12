@@ -509,8 +509,7 @@ class Monster(Entity):
 				if self.sees(player):
 					self.target_entity(player)
 					if self.id == "bat" and one_in(5):
-						self.set_rand_target()
-					
+						self.set_rand_target()		
 				else:
 					self.set_state("TRACKING")
 					self.target_entity(player)
