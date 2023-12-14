@@ -34,8 +34,7 @@ class Board:
 		while True:
 			pos = self.random_pos()
 			if self.passable(pos):
-				return pos
-				
+				return pos		
 		
 	def init_border(self):
 		width = self.width

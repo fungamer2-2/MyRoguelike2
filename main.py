@@ -14,7 +14,7 @@ def main():
 try:
 	main()
 except:
-	g.deinit_window()				
+	g.deinit_window()	
 	raise
 finally:
 	g.deinit_window()

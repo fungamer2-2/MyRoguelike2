@@ -23,9 +23,7 @@ class Player(Entity):
 		self.inventory = []
 		
 	def calc_evasion(self):
-		dex = self.DEX
-		
-		bonus = 5 + (dex - 10) / 2
+		bonus = 5 + stat_mod(self.DEX)
 		if not self.is_alive():
 			bonus = 0
 		else:
@@ -127,7 +125,7 @@ class Player(Entity):
 	def calc_to_hit_bonus(self, mon):
 		level_bonus = (self.xp_level - 1) / 3
 		avg = (self.STR + self.DEX) / 2
-		stat_bonus = (avg - 10) / 2
+		stat_bonus = stat_mod(avg)
 		mod = level_bonus + stat_bonus
 		if not mon.is_aware():
 			mod += 5
@@ -141,16 +139,22 @@ class Player(Entity):
 		return 0.035 * mult
 		
 	def recalc_max_hp(self):
-		level_mod = 8 * (self.xp_level - 1)
+		base_hp = 10
+		mult = base_hp * 0.75
+		level_mod = mult * (self.xp_level - 1)
 		level_mod *= self.CON / 10
-		val = 10 + level_mod
+		level_mod = max(level_mod, 2 * (self.xp_level - 1))
+		val = base_hp + level_mod
 		if self.has_status("Enlarged"):
 			val *= 1.5
 		elif self.has_status("Reduced"):
 			val *= 0.7
 			
 		oldhp = self.MAX_HP
-		self.MAX_HP = round(val)
+		newhp = round(val)
+		
+		
+		self.MAX_HP = newhp
 		
 		if self.MAX_HP != oldhp:
 			scale = self.MAX_HP / oldhp
@@ -249,8 +253,16 @@ class Player(Entity):
 		
 		roll = gauss_roll(mod)
 		evasion = mon.calc_evasion()
-		if roll >= evasion:	
+		margin = roll - evasion
+		
+		if x_in_y(MIN_HIT_MISS_PROB, 100):
+			margin = 1000 if one_in(2) else -1000
+		
+		if margin >= 0:	
 			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
+			crit = False
+			if margin >= 5:
+				crit = one_in(10)
 			
 			if sneak_attack:
 				msg = [
@@ -266,7 +278,12 @@ class Player(Entity):
 			elif self.has_status("Reduced"):
 				damage = (damage + 1) // 2
 		
-			damage = apply_armor(damage, mon.get_armor())	
+			armor = mon.get_armor()
+			if crit:
+				damage += dice(1, 6)
+				armor = div_rand(armor, 2)
+			
+			damage = apply_armor(damage, armor)	
 			damage = max(damage, 1)
 			
 			noise = rng(1, 2) + rng(0, round(damage ** 0.65))
@@ -276,7 +293,8 @@ class Player(Entity):
 			
 			self.make_noise(noise)
 			self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
-			
+			if crit:
+				self.add_msg("Critical hit!", "good")
 			mon.take_damage(damage)
 			if mon.is_alive():
 				self.add_msg(f"It has {mon.HP}/{mon.MAX_HP} HP.")
@@ -317,6 +335,7 @@ class Player(Entity):
 		target = Point(pos.x + dx, pos.y + dy)
 		if g.monster_at(target):
 			return self.attack_pos(target)
+			
 		return False
 	
 	def add_status(self, name, dur, silent=False):
@@ -379,9 +398,9 @@ class Player(Entity):
 				mon.target_entity(self)
 				
 	def stealth_roll(self):
-		stealth = (self.DEX-10)/2
+		stealth = stat_mod(self.DEX)
 		if self.has_status("Reduced"):
-			stealth += 4
+			stealth += 3
 		elif self.has_status("Enlarged"):
 			stealth -= 3
 		return gauss_roll(stealth)	

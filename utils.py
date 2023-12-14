@@ -12,9 +12,13 @@ def gen_stats():
 		if ind == -1:
 			ind = random.choice(eligible)
 		cost = 2 if stats[ind] >= 13 else 1
+		if cost == 2 and one_in(2):
+			ind = -1
+			continue
 		if points < cost:
 			ind = -1
 			continue
+		
 		stats[ind] += 1
 		points -= cost
 		
@@ -54,7 +58,10 @@ def div_rand(x, y):
 
 def mult_rand_frac(val, x, y):
 	return div_rand(val * x, y)
- 
+	
+def stat_mod(stat):
+	return (stat - 10) / 2 
+
 def random_weighted(entries):
 	values, weights = list(zip(*entries))
 	return random.choices(values, weights=weights)[0]

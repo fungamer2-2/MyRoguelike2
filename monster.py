@@ -1,6 +1,7 @@
 from entity import Entity
 from player import Player
 from utils import *
+from const import *
 from pathfinding import find_path
 from collections import deque
 import random, curses
@@ -25,6 +26,9 @@ class Monster(Entity):
 		
 	def is_monster(self):
 		return True
+		
+	def can_see(self):
+		return self.has_flag("SEES")
 		
 	def is_ally(self, other):
 		if other.is_monster():
@@ -170,20 +174,19 @@ class Monster(Entity):
 		#Player's stealth check against monster's passive perception
 		g = self.g
 		player = g.get_player()
-		roll = player.stealth_roll()
-		per_mod = (self.WIS-10)/2
+		
+		per_mod = stat_mod(self.WIS)
 		perception = 10 + per_mod
-		sight = self.type.blindsight
-		if sight and self.distance(player) <= sight.range:
+		range = self.type.blindsight_range
+		if self.distance(player) <= range:
 			perception += 4
-		if self.has_flag("KEEN_SMELL"):
-			mod = max(1 - self.distance(player)/15, 0)
-			perception += 4 * mod
+			
 		perception += self.get_skill("perception")
 		
-		if roll < perception:
-			margin = perception - roll
-			return x_in_y(1, 6 - margin)		
+		stealth_roll = player.stealth_roll()
+		if stealth_roll < perception:
+			margin = perception - stealth_roll
+			return x_in_y(1, 6 - margin)	
 		return False
 		
 	def tick(self):
@@ -201,6 +204,8 @@ class Monster(Entity):
 			self.poison -= amount
 			if self.poison < 0:
 				self.poison = 0
+		elif x_in_y(self.CON, 160) and not self.has_flag("NO_REGEN"):
+			self.heal(1)
 			
 	def do_turn(self):
 		assert self.energy > 0
@@ -211,29 +216,19 @@ class Monster(Entity):
 		self.move()
 		if self.energy == old:
 			self.energy = 0
-			
-	def sees_pos(self, pos):
-		if super().sees_pos(pos):
-			if (sight := self.type.blindsight):
-				if sight.blind_beyond and self.distance(pos) > sight.range:
-					return False
-			return True
-		return False
 		
 	def sees(self, other):
 		if not super().sees(other):
 			return False
+		
+		blindsight_range = self.type.blindsight_range
 			
-		#Blindaight bypasses invisibility
-		if (sight := self.type.blindsight):
-			range = sight.range
-			if self.distance(other) <= range:
-				return True
-			elif sight.blind_beyond:
-				return False
+		#Blindsight bypasses invisibility, which is intended
+		if self.distance(other) <= blindsight_range:
+			return True
 		
 		#TODO: Invisibility check
-		return True
+		return self.can_see()
 		
 	def speed_mult(self):
 		mult = super().speed_mult()
@@ -384,7 +379,7 @@ class Monster(Entity):
 		board = g.get_board()
 		if not self.is_aware():
 			if self.has_flag("PACK_TRAVEL"): #If we alert one member of the pack, alert the entire pack.
-				for mon in g.monsters_in_radius(self.pos, 7):	
+				for mon in g.monsters_in_radius(self.pos, 6):	
 					if self.is_ally(mon):
 						mon.set_state("AWARE")
 			if self.state == "IDLE":
@@ -453,8 +448,12 @@ class Monster(Entity):
 		mod = self.get_to_hit_bonus()
 		
 		roll = gauss_roll(mod)
+		margin = c.calc_evasion() - roll
 		
-		if roll >= c.calc_evasion():
+		if x_in_y(MIN_HIT_MISS_PROB, 100):
+			margin = 1000 if one_in(2) else -1000
+		
+		if margin >= 0:
 			damage = self.damage.roll()
 			stat = self.DEX if self.type.use_dex_melee else self.STR
 			damage += div_rand(stat - 10, 2)
@@ -488,6 +487,7 @@ class Monster(Entity):
 						c.poison += dmg
 						if poison_typ.slowing and x_in_y(dmg, dmg+3):
 							c.add_status("Slowed", rng(dmg, dmg*4))
+							
 		else:			
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {c.get_name()}.")
 		

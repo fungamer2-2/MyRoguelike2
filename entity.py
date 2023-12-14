@@ -29,7 +29,6 @@ class Entity(ABC):
 		self.status[name] += dur*100
 		
 	def remove_status(self, name):
-		
 		if self.has_status(name):
 			del self.status[name]
 		
@@ -46,7 +45,7 @@ class Entity(ABC):
 		dex = self.DEX
 		if not self.is_alive():
 			dex = 0
-		return 10 + (dex - 10) / 2
+		return 10 + stat_mod(dex)
 		
 	def base_speed(self):
 		return 100
@@ -149,8 +148,7 @@ class Entity(ABC):
 		
 	def make_noise(self, volume):
 		g = self.g
-		g.add_noise_event(self.pos, volume)
+		g.add_noise_event(self.pos, volume, self)
 		
 	def roll_wisdom(self):
-		mod = (self.WIS-10)/2
-		return gauss_roll(mod)
+		return gauss_roll(stat_mod(self.WIS))

@@ -162,13 +162,7 @@ class MonsterType(JSONObject):
 		dam = obj.get_optional(d, "base_damage", "0", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		
-		obj.load_optional(d, "blindsight", False, (bool, dict))
-		
-		if obj.blindsight != False:
-			if type(obj.blindsight) != dict:
-				raise TypeError("blindsight field must be a dict or False")
-			obj.load_from("blindsight", Blindsight)
-		
+		obj.load_optional(d, "blindsight_range", 0, int)
 		obj.load_optional(d, "poison", False, (bool, dict))
 		
 		if obj.poison != False:
@@ -189,6 +183,16 @@ class EffectType(JSONObject):
 		obj.load_required(d, "extend_msg", str)
 		obj.load_required(d, "remove_msg", str)
 		return obj
+		
+class WeaponType(JSONObject):
+		
+	@classmethod
+	def load(cls, d):
+		obj = cls()
+		obj.load_required(d, "name", str)
+		obj.load_required(d, "symbol", str)
+		obj.load_required(d, "base_damage", str),
+		obj.load_optional(d, "finesse", False, bool)
 		
 def load_monster_types():
 	mon_types = {}

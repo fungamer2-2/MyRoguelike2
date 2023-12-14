@@ -104,3 +104,4 @@ class SpeedPotion(Potion):
 		player.add_status("Hasted", dur)	
 		return True
 
+#TODO: Melee and ranged weapons/JSON for them

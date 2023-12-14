@@ -27,9 +27,9 @@ class Game:
 		self.select_mon = None
 		self.noise_events = []
 		
-	def add_noise_event(self, pos, loudness):
+	def add_noise_event(self, pos, loudness, src=None):
 		if loudness > 0:
-			self.noise_events.append(NoiseEvent(pos, loudness))
+			self.noise_events.append(NoiseEvent(pos, loudness, src))
 		
 	def set_mon_select(self, m):
 		self.select_mon = m
@@ -198,10 +198,7 @@ class Game:
 	def place_player(self):
 		board = self.get_board()
 		player = self.get_player()
-		while True:
-			pos = board.random_pos()
-			if board.passable(pos):
-				break
+		pos = board.random_passable()
 		player.move_to(pos)
 		board.set_collision_cache(pos, player)
 		
@@ -225,8 +222,6 @@ class Game:
 				break		
 		
 		return self.place_monster_at(typ_id, pos)
-		
-	
 	
 	def entity_at(self, pos):
 		board = self.get_board()
@@ -234,14 +229,14 @@ class Game:
 		
 	def monster_at(self, pos):
 		entity = self.entity_at(pos)
-		if isinstance(entity, Player):
-			return None
-		return entity
+		if entity and entity.is_monster():
+			return entity
+		return None
 		
 	def monsters_in_radius(self, pos, radius):
 		board = self.get_board()
 		for pos in board.points_in_radius(pos, radius):
-			if (mon := self.monster_at(pos)) and not isinstance(mon, Player):
+			if (mon := self.monster_at(pos)):
 				yield mon
 				
 	def once_every_num_turns(self, num):
@@ -261,7 +256,7 @@ class Game:
 			return
 		for noise in self.noise_events:
 			for m in self.monsters:
-				if noise.pos != m.pos:
+				if not (noise.src and noise.src is m):
 					m.on_hear_noise(noise)
 				
 		self.noise_events.clear()
@@ -274,7 +269,6 @@ class Game:
 		if used <= 0:
 			return
 		
-		self.refresh_mon_pos_cache()
 		player.do_turn()
 		
 		self.subtick_timer += used
@@ -307,6 +301,7 @@ class Game:
 			remaining = nextremain
 		
 		self.remove_dead()
+		self.refresh_mon_pos_cache()
 		self.process_noise_events()
 		
 	def items_at(self, pos):
@@ -330,12 +325,10 @@ class Game:
 				
 	def place_stairs(self):
 		board = self.get_board()
-		while True:
-			pos = board.random_pos()
-			if board.passable(pos):
-				tile = board.get_tile(pos)
-				tile.stair = True
-				return
+		pos = board.random_passable()
+		
+		tile = board.get_tile(pos)
+		tile.stair = True
 			
 	def getch(self, wait=True):
 		screen = self.screen
@@ -522,7 +515,7 @@ class Game:
 				player.use_energy(100)
 			return True
 			
-		if not player.can_act():
+		if player.has_status("Paralyzed"):
 			player.use_energy(100)
 			return True
 		
@@ -597,7 +590,10 @@ class Game:
 		a_an = "an" if monster.name[0] in "aeiou" else "a"
 		
 		info = PopupInfo(self)
-		info.add_line(f"{monster.symbol} - {monster.name}")
+		info.add_line(f"{monster.symbol} - {monster.name} ({monster.HP}/{monster.MAX_HP} HP)")
+		info.add_line()
+		stats_str = f"STR {monster.STR}, DEX {monster.DEX}, CON {monster.CON}"
+		info.add_line(stats_str)
 		info.add_line()
 		if monster.state == "IDLE":
 			info.add_line("It hasn't noticed your presence yet.")
@@ -612,12 +608,15 @@ class Game:
 			if mon_speed > player_speed:
 				diff_str = f"{diff:.2f}x"
 			else:
-				diff_str = f"{diff*100:.2f}%"
+				diff_str = f"{diff*100:.1f}%"
 			info.add_line(f"This monster is about {diff_str} as fast as you.")	
 		 
 		
 		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), monster.calc_evasion())
 		monster_to_hit = gauss_roll_prob(monster.get_to_hit_bonus(), player.calc_evasion())
+		
+		player_to_hit = player_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
+		monster_to_hit = monster_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
 		
 		info.add_line(f"Your attacks have a {player_to_hit:.1f}% probability to hit this creature.")
 		info.add_line(f"Its attacks have a {monster_to_hit:.1f}% probability to hit you.")
