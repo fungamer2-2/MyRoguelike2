@@ -98,7 +98,12 @@ class Game:
 		self.load_effects()
 		
 	def next_level(self):
+		player = self.get_player()
 		self.level += 1
+		
+		if player.debug_wizard:
+			self.level = self.input_int("As the wizard of debugging, you choose which level to go to. Which level number would you like to teleport to?")
+		
 		self.generate_level()
 		self.refresh_mon_pos_cache()		
 		self.draw_board()
@@ -131,10 +136,16 @@ class Game:
 			board.place_item_at(pos, typ())
 			
 	def place_monsters(self):
-		eligible_types = []
+		eligible_types = {}
+		highest = 0
+		levels = []
 		for typ in self.get_all_monster_types():
 			if self.level >= typ.level:
-				eligible_types.append(typ)
+				if typ.level not in eligible_types:
+					levels.append(typ.level)
+					eligible_types[typ.level] = []
+				eligible_types[typ.level].append(typ)
+				
 		assert len(eligible_types) > 0
 			
 		num_monsters = rng(5, 10)
@@ -142,7 +153,7 @@ class Game:
 		
 		packs = 0
 		while num_monsters > 0:
-			typ = random.choice(eligible_types)
+			typ = random.choice(eligible_types[random.choice(levels)])
 			min_level = typ.level
 			pack_spawn_chance = self.level - min_level + 1
 			if "PACK_TRAVEL" in typ.flags and x_in_y(pack_spawn_chance, pack_spawn_chance + 3) and one_in(6 + packs * 3):
@@ -198,10 +209,14 @@ class Game:
 	def place_player(self):
 		board = self.get_board()
 		player = self.get_player()
-		pos = board.random_passable()
-		player.move_to(pos)
-		board.set_collision_cache(pos, player)
-		
+		while True:
+			pos = board.random_passable()
+			for p in board.points_in_radius(pos, 1):
+				if p != pos and player.can_move_to(p):	
+					player.move_to(pos)
+					board.set_collision_cache(pos, player)
+					return
+					
 	def place_monster_at(self, typ_id, pos):
 		typ = self.get_mon_type(typ_id)
 		m = Monster.from_type(typ)
@@ -271,6 +286,7 @@ class Game:
 		
 		player.do_turn()
 		
+		
 		self.subtick_timer += used
 		player.energy += used
 		for m in self.monsters:		
@@ -282,11 +298,14 @@ class Game:
 			self.subtick_timer -= 100
 			self.tick += 1
 			for m in self.monsters:
-				m.tick()
+				if m.is_alive():
+					m.tick()
 			
 		remaining = self.monsters.copy()
 		random.shuffle(remaining)
 		remaining.sort(key=lambda m: m.energy, reverse=True)
+		
+		self.refresh_mon_pos_cache()
 		
 		while len(remaining) > 0:
 			nextremain = []
@@ -298,10 +317,9 @@ class Game:
 				m.do_turn()
 				if m.energy > 0:
 					nextremain.append(m)
-			remaining = nextremain
+			remaining = nextremain	
 		
 		self.remove_dead()
-		self.refresh_mon_pos_cache()
 		self.process_noise_events()
 		
 	def items_at(self, pos):
@@ -405,7 +423,7 @@ class Game:
 		xp_needed = player.xp_to_next_level()
 		xp_curr = player.xp
 		
-		xp_str = f"XP Level: {player.xp_level} - {xp_curr}/{xp_needed}"
+		xp_str = f"XP Level: {player.xp_level} - {xp_curr}/{xp_needed} | Depth: {self.level}"
 		self.draw_string(1, 0, xp_str)
 		
 		
@@ -418,7 +436,25 @@ class Game:
 			f"CHA {player.CHA}"
 		]
 		for i, string in enumerate(strings):
-			self.draw_string(i, width + 6, string)	
+			self.draw_string(i, width + 6, string)
+		
+		offset = len(strings) + 1
+		ev = player.calc_evasion() - 10
+		ev = round(ev, 1)
+		stealth = round(player.stealth_mod(), 1)
+		
+		ev_str = f"+{ev}" if ev >= 0 else str(ev)
+		
+		stealth_str = f"+{stealth}" if stealth >= 0 else str(ev)
+		
+		strings2 = [
+			f"Stealth: {stealth_str}",
+			f"Evasion: {ev_str}"
+		]
+		
+		for i, string in enumerate(strings2):
+			self.draw_string(i + offset, width + 6, string)
+			
 
 	def draw_monsters(self, offset_y):
 		player = self.get_player()
@@ -500,6 +536,14 @@ class Game:
 		curses.curs_set(False)
 		curses.noecho()
 		return result.decode()
+		
+	def input_int(self, msg=""):
+		while True:
+			txt = self.input_text(msg)
+			try:
+				return int(txt)
+			except ValueError:
+				self.add_message("Integers only, please.", "input")
 	
 	def process_input(self):
 		self.maybe_refresh()

@@ -64,6 +64,9 @@ class Board:
 		
 	def has_line_of_sight(self, pos1, pos2):
 		return self._check_simple_los(pos1, pos2) or self._check_simple_los(pos2, pos1)
+	
+	def has_clear_path(self, pos1, pos2):
+		return self._check_simple_clear_path(pos1, pos2) or self._check_simple_clear_path(pos2, pos1)
 		
 	def _check_simple_los(self, pos1, pos2):
 		if pos1 == pos2:
@@ -94,7 +97,7 @@ class Board:
 		self.set_los_cache(pos1, pos2, True)
 		return True
 		
-	def has_clear_path(self, pos1, pos2):
+	def _check_simple_clear_path(self, pos1, pos2):
 		if not self.has_line_of_sight(pos1, pos2):
 			return False
 		old_pos = None

@@ -97,9 +97,9 @@ class Entity(ABC):
 	def move_to(self, pos):
 		board = self.g.get_board()
 		if self.can_move_to(pos):
-			old_pos = self.pos
-			self.pos = pos
+			old_pos = self.pos.copy()
 			board.erase_collision_cache(old_pos)
+			self.pos = pos
 			board.set_collision_cache(pos, self)
 			return True
 		return False
@@ -113,6 +113,11 @@ class Entity(ABC):
 	def take_damage(self, dam):
 		if dam > 0:
 			self.set_hp(self.HP - dam)
+	
+	def has_clear_path_to(self, other):
+		g = self.g
+		board = g.get_board()
+		return board.has_clear_path(self.pos, other)
 		
 	def heal(self, amount):
 		if amount > 0:

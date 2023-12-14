@@ -20,6 +20,7 @@ class Player(Entity):
 		self.fov = set()
 		self.energy_used = 0
 		self.is_resting = False
+		self.debug_wizard = True
 		self.inventory = []
 		
 	def calc_evasion(self):
@@ -196,7 +197,7 @@ class Player(Entity):
 		
 	def on_move(self, oldpos):
 		g = self.g
-		prev_adj = [mon for mon in g.monsters_in_radius(oldpos, 1)]
+		prev_dist = [(mon, oldpos.distance(mon.pos)) for mon in self.visible_monsters()]
 		
 		items = g.items_at(self.pos)
 		if items:
@@ -206,10 +207,14 @@ class Player(Entity):
 			else:
 				items = ", ".join(item.name for item in items)
 				self.add_msg(f"You see here: {items}")
-		for mon in prev_adj:
+		for mon, old_dist in prev_dist:
 			if not mon.is_aware():
 				continue
-			if self.distance(mon) >= 2 and mon.sees(self):
+			reach = mon.reach_dist() 
+			if reach > 1 and not mon.has_clear_path_to(self.pos):
+				continue
+			
+			if old_dist <= reach and self.distance(mon) > reach and mon.sees(self):
 				player_roll = random.triangular(0, self.get_speed())
 				monster_roll = random.triangular(0, mon.get_speed())
 				if monster_roll >= player_roll and one_in(2):
@@ -237,7 +242,11 @@ class Player(Entity):
 			if 0 < self.HP <= self.MAX_HP // 5:
 				self.add_msg(f"***LOW HP WARNING***", "bad")
 			if self.HP <= 0:
-				self.add_msg("You have died...", "bad")			
+				if self.debug_wizard:
+					self.add_msg("You can't die while you're debugging, can you?", "good")
+					self.heal(999)
+				else:
+					self.add_msg("You have died...", "bad")			
 	
 	def attack_pos(self, pos):
 		g = self.g
@@ -248,7 +257,7 @@ class Player(Entity):
 		sneak_attack = False
 		mod = self.calc_to_hit_bonus(mon)
 		if not mon.is_aware():
-			if x_in_y(self.DEX, 30) and one_in(2):
+			if x_in_y(self.DEX, 60):
 				sneak_attack = True
 		
 		roll = gauss_roll(mod)
@@ -286,7 +295,7 @@ class Player(Entity):
 			damage = apply_armor(damage, armor)	
 			damage = max(damage, 1)
 			
-			noise = rng(1, 2) + rng(0, round(damage ** 0.65))
+			noise = rng(1, 2) + mult_rand_frac(round(damage ** 0.6), 4, 5)
 			
 			if sneak_attack:
 				noise = div_rand(noise, 2)
@@ -397,10 +406,14 @@ class Player(Entity):
 				mon.alerted()
 				mon.target_entity(self)
 				
-	def stealth_roll(self):
+	def stealth_mod(self):
 		stealth = stat_mod(self.DEX)
 		if self.has_status("Reduced"):
 			stealth += 3
 		elif self.has_status("Enlarged"):
 			stealth -= 3
-		return gauss_roll(stealth)	
+			
+		return stealth		
+				
+	def stealth_roll(self):
+		return gauss_roll(self.stealth_mod())	

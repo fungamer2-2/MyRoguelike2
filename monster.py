@@ -30,6 +30,10 @@ class Monster(Entity):
 	def can_see(self):
 		return self.has_flag("SEES")
 		
+	def reach_dist(self):
+		reach = self.type.reach
+		return max(reach, 1)
+		
 	def is_ally(self, other):
 		if other.is_monster():
 			return other.id == self.id
@@ -179,7 +183,7 @@ class Monster(Entity):
 		perception = 10 + per_mod
 		range = self.type.blindsight_range
 		if self.distance(player) <= range:
-			perception += 4
+			perception += 5
 			
 		perception += self.get_skill("perception")
 		
@@ -315,10 +319,11 @@ class Monster(Entity):
 			return
 		
 		target = self.target_pos
-		
-		if (c := g.entity_at(target)) and c.is_player() and self.distance(target) <= 1:
-			if self.attack_pos(target):
-				return
+		dist = self.distance(target)
+		if (c := g.entity_at(target)) and c.is_player() and dist <= self.reach_dist():
+			if dist <= 1 or ((x_in_y(2, dist + 1) or one_in(3)) and self.has_clear_path_to(target)):
+				if self.attack_pos(target):
+					return
 				
 		can_path = self.path_towards(target)
 		
@@ -368,6 +373,7 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		self.HP = 0
+		self.use_energy(1000)
 		self.add_msg_if_u_see(self, f"{self.get_name(True)} dies!", "good")
 		board.erase_collision_cache(self.pos)
 		
@@ -448,7 +454,7 @@ class Monster(Entity):
 		mod = self.get_to_hit_bonus()
 		
 		roll = gauss_roll(mod)
-		margin = c.calc_evasion() - roll
+		margin = roll - c.calc_evasion()
 		
 		if x_in_y(MIN_HIT_MISS_PROB, 100):
 			margin = 1000 if one_in(2) else -1000
@@ -486,7 +492,12 @@ class Monster(Entity):
 						c.add_msg_u_or_mons("You are poisoned!", f"{self.get_name(True)} appears to be poisoned.", typ)
 						c.poison += dmg
 						if poison_typ.slowing and x_in_y(dmg, dmg+3):
-							c.add_status("Slowed", rng(dmg, dmg*4))
+							paralyzed = False
+							if self.has_status("Slowed") and one_in(4):
+								c.add_status("Paralyzed", rng(1, 5))
+								paralyzed = True
+								
+							c.add_status("Slowed", rng(dmg, dmg*4), paralyzed)
 							
 		else:			
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {c.get_name()}.")
