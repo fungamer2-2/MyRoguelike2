@@ -7,6 +7,8 @@ Required Python version: 3.11
 This is a terminal-based roguelike game in Python.
 It entirely uses the CLI interface.
 
+![image](./images/image.png)
+
 ## Controls
 `wasd` - move around<br />
 `SPACE` - wait a turn<br />
