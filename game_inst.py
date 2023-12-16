@@ -1,13 +1,17 @@
+from const import *
+from items import *
+
 from json_obj import *
 from board import Board
 from entity import Entity
 from monster import Monster
 from player import Player
-from const import *
+
+
 from messages import MessageLog
 from noise_event import NoiseEvent
 from utils import *
-from items import *	
+	
 import curses, textwrap, math
 
 class Game:
@@ -21,11 +25,13 @@ class Game:
 		self.window_init = True
 		self.mon_types = {}
 		self.eff_types = {}
+		self.weap_types = {}
 		self.level = 1
 		self.subtick_timer = 0
 		self.tick = 0
 		self.select_mon = None
 		self.noise_events = []
+		self.revealed = set()
 		
 	def add_noise_event(self, pos, loudness, src=None):
 		if loudness > 0:
@@ -50,16 +56,30 @@ class Game:
 			error = ValueError(f"invalid effect name {name!r}")
 			error.add_note(f"Valid effect names are: {', '.join(valid_types)}")
 			raise error
+			
+	def check_weapon_type(self, typ):
+		if typ not in self.weap_types:
+			valid_types = sorted(self.weap_types.keys())
+			error = ValueError(f"invalid weapon type {typ!r}")
+			error.add_note(f"Valid weapon types are: {', '.join(valid_types)}")
+			raise error
 	
 	def load_monsters(self):
 		self.mon_types = load_monster_types()
 	
 	def load_effects(self):
-		self.eff_types = load_effect_types()	
+		self.eff_types = load_effect_types()
+		
+	def load_weapons(self):
+		self.weap_types = load_weapon_types()	
 	
 	def get_mon_type(self, typ):
 		self.check_mon_type(typ)
 		return self.mon_types[typ]
+		
+	def get_weapon_type(self, typ):
+		self.check_weapon_type(typ)
+		return self.weap_types[typ]
 		
 	def get_all_monster_types(self):
 		for typ in self.mon_types.values():
@@ -96,6 +116,7 @@ class Game:
 	def load_json_data(self):
 		self.load_monsters()
 		self.load_effects()
+		self.load_weapons()
 		
 	def next_level(self):
 		player = self.get_player()
@@ -112,12 +133,27 @@ class Game:
 		board = self.get_board()
 		
 		self.monsters.clear()
+		self.revealed.clear()
+		
 		board.clear_los_cache()
 		board.clear_collision_cache()
 		board.procgen_level()
 		self.place_player()
 		self.place_monsters()
 		self.place_items()
+		
+	def choose_mon_spawn_pos(self):
+		board = self.get_board()
+		player = self.get_player()
+		force_outside_fov = x_in_y(3, 4) and x_in_y(8, self.level + 8)
+		
+		for tries in range(150):
+			pos = board.random_pos()
+			if board.passable(pos) and not self.entity_at(pos):
+				if not (force_outside_fov and player.sees_pos(pos)):
+					return pos
+		
+		return None
 	
 	def place_items(self):
 		board = self.get_board()
@@ -134,6 +170,21 @@ class Game:
 			
 			typ = random_weighted(potions)
 			board.place_item_at(pos, typ())
+			
+		weapons = [
+			["club", 100],
+			["dagger", 60],
+			["greatclub", 25],
+			["handaxe", 60]
+		]
+		
+		for _ in range(rng(1, 4)):
+			if one_in(2):
+				pos = board.random_passable()
+				name = random_weighted(weapons)
+				typ = self.get_weapon_type(name)
+				weapon = Weapon.from_type(typ)
+				board.place_item_at(pos, weapon)
 			
 	def place_monsters(self):
 		eligible_types = {}
@@ -168,10 +219,11 @@ class Game:
 	def spawn_pack(self, typ, num):
 		self.check_mon_type(typ)
 		board = self.get_board()
-		for tries in range(75):
-			pos = board.random_pos()
-			if board.passable(pos) and not self.entity_at(pos):
-				break
+		
+		pos = self.choose_mon_spawn_pos()
+		
+		if not pos:
+			return False
 		
 		candidates = []
 		for p in board.points_in_radius(pos, 4):
@@ -231,11 +283,10 @@ class Game:
 		typ = self.get_mon_type(typ_id)
 		board = self.get_board()
 		
-		for tries in range(150):
-			pos = board.random_pos()
-			if board.passable(pos) and not self.monster_at(pos):
-				break		
-		
+		pos = self.choose_mon_spawn_pos()
+		if not pos:
+			return None
+			
 		return self.place_monster_at(typ_id, pos)
 	
 	def entity_at(self, pos):
@@ -283,8 +334,10 @@ class Game:
 		
 		if used <= 0:
 			return
-		
-		player.do_turn()
+			
+		while player.energy_used > 0:
+			amount = min(player.energy_used, 100)		
+			player.do_turn(amount)
 		
 		
 		self.subtick_timer += used
@@ -351,9 +404,6 @@ class Game:
 	def getch(self, wait=True):
 		screen = self.screen
 		screen.nodelay(not wait)
-		if wait:
-			curses.flushinp()
-			
 		code = screen.getch()
 		return code
 	
@@ -447,9 +497,14 @@ class Game:
 		
 		stealth_str = f"+{stealth}" if stealth >= 0 else str(ev)
 		
+		wield_str = player.weapon.name
+		dmg_str = str(player.weapon.damage)
 		strings2 = [
 			f"Stealth: {stealth_str}",
-			f"Evasion: {ev_str}"
+			f"Evasion: {ev_str}",
+			"",
+			f"Wield: {wield_str}",
+			f"Damage: {dmg_str}"
 		]
 		
 		for i, string in enumerate(strings2):
@@ -503,7 +558,7 @@ class Game:
 		player = self.get_player()
 		for pos in player.fov:
 			board.reveal_tile_at(pos)
-			
+				
 	def draw_board(self):
 		screen = self.screen
 		screen.erase()

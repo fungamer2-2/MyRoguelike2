@@ -189,10 +189,17 @@ class WeaponType(JSONObject):
 	@classmethod
 	def load(cls, d):
 		obj = cls()
+		obj.load_required(d, "id", str)
 		obj.load_required(d, "name", str)
-		obj.load_required(d, "symbol", str)
-		obj.load_required(d, "base_damage", str),
+		obj.load_required(d, "symbol", str),
+		obj.load_required(d, "damage_type", str),
 		obj.load_optional(d, "finesse", False, bool)
+		obj.load_optional(d, "heavy", False, bool)
+		
+		dam = obj.get_required(d, "base_damage", str)
+		obj.set_field("base_damage", Dice(*parse_dice(dam)))
+		
+		return obj
 		
 def load_monster_types():
 	mon_types = {}
@@ -205,6 +212,18 @@ def load_monster_types():
 		typ = MonsterType.load(mon)
 		mon_types[mon_id] = typ
 	return mon_types
+	
+def load_weapon_types():
+	weap_types = {}
+	f = open("weapons.json", "r")
+	data = json.load(f)
+	for weap in data:
+		weap_id = weap["id"]
+		if weap_id in weap_types:
+			raise ValueError(f"duplicate weapon id {weap_id!r}")
+		typ = WeaponType.load(weap)
+		weap_types[weap_id] = typ
+	return weap_types
 	
 def load_effect_types():
 	eff_types = {}

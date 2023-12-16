@@ -41,6 +41,9 @@ class Entity(ABC):
 	def is_monster(self):
 		return False
 		
+	def is_invisible(self):
+		return False
+		
 	def calc_evasion(self):
 		dex = self.DEX
 		if not self.is_alive():
@@ -92,7 +95,14 @@ class Entity(ABC):
 		board = g.get_board()
 		if pos == self.pos:
 			return True
-		return board.passable(pos) and not g.entity_at(pos)
+		ent_check = False
+		
+		if self.is_player():
+			ent_check = g.monster_at(pos)
+		else:
+			ent_check = g.entity_at(pos)
+			
+		return board.passable(pos) and not ent_check
 		
 	def move_to(self, pos):
 		board = self.g.get_board()
@@ -157,3 +167,20 @@ class Entity(ABC):
 		
 	def roll_wisdom(self):
 		return gauss_roll(stat_mod(self.WIS))
+		
+	def hit_with_acid(self, strength, corr):
+		if strength <= 0:
+			return
+		dam = rng(1, strength) 
+		typ = "bad" if self.is_player() else "neutral"
+	
+		self.add_msg_u_or_mons("The acid burns you!", f"{self.get_name(True)} is burned by acid!", typ)
+		self.take_damage(dam)
+		
+		if self.is_player():
+			if x_in_y(dam * corr, 2000):
+				#TODO: Corrode armor
+				pass
+			
+		
+		

@@ -1,6 +1,7 @@
 from entity import Entity
 from utils import *
 from const import *
+from items import UNARMED
 
 class Player(Entity):
 	
@@ -20,8 +21,12 @@ class Player(Entity):
 		self.fov = set()
 		self.energy_used = 0
 		self.is_resting = False
-		self.debug_wizard = True
+		self.debug_wizard = False
+		self.weapon = UNARMED
 		self.inventory = []
+		
+	def is_unarmed(self):
+		return self.weapon is UNARMED
 		
 	def calc_evasion(self):
 		bonus = 5 + stat_mod(self.DEX)
@@ -113,6 +118,11 @@ class Player(Entity):
 		for m in g.monsters:
 			if self.sees(m):
 				yield m
+				
+	def maybe_alert_monsters(self, chance):
+		for mon in self.visible_monsters():
+			if x_in_y(chance, 100):
+				mon.alerted()
 					
 	def speed_mult(self):
 		mult = super().speed_mult()
@@ -125,14 +135,20 @@ class Player(Entity):
 		
 	def calc_to_hit_bonus(self, mon):
 		level_bonus = (self.xp_level - 1) / 3
-		avg = (self.STR + self.DEX) / 2
-		stat_bonus = stat_mod(avg)
+		stat = (self.STR + self.DEX) / 2
+		if self.weapon.finesse:
+			stat = max(self.STR, self.DEX) * 1.1
+		
+		stat_bonus = stat_mod(stat)
 		mod = level_bonus + stat_bonus
 		if not mon.is_aware():
 			mod += 5
 		
 		if self.has_status("Reduced"):
 			mod += 1.5
+			
+		if self.is_unarmed():
+			mod += 1
 		return mod
 		
 	def regen_rate(self):
@@ -153,7 +169,6 @@ class Player(Entity):
 			
 		oldhp = self.MAX_HP
 		newhp = round(val)
-		
 		
 		self.MAX_HP = newhp
 		
@@ -185,7 +200,7 @@ class Player(Entity):
 	def use_item(self):
 		if not self.inventory:
 			self.add_msg("You have nothing in your inventory.")
-			return
+			return False
 		g = self.g
 		item = g.select_use_item()
 		if not item:
@@ -215,8 +230,8 @@ class Player(Entity):
 				continue
 			
 			if old_dist <= reach and self.distance(mon) > reach and mon.sees(self):
-				player_roll = random.triangular(0, self.get_speed())
-				monster_roll = random.triangular(0, mon.get_speed())
+				player_roll = triangular_roll(0, self.get_speed())
+				monster_roll = triangular_roll(0, mon.get_speed())
 				if monster_roll >= player_roll and one_in(2):
 					self.add_msg(f"{mon.get_name(True)} makes an opportunity attack as you move away!", "warning")
 					oldenergy = mon.energy
@@ -248,10 +263,33 @@ class Player(Entity):
 				else:
 					self.add_msg("You have died...", "bad")			
 	
+	def combat_noise(self, damage, sneak_attack):
+		weapon = self.weapon
+		match weapon.dmg_type:
+			case "bludgeon":
+				scale = 6
+			case "pierce":
+				scale = 2
+			case _:
+				scale = 4
+		
+		noise = rng(1, 2) + mult_rand_frac(round(damage ** 0.6), scale, 5)
+		
+		
+		if sneak_attack:
+			noise = div_rand(noise, 3)
+			
+		if noise > 0:
+			self.make_noise(noise)
+			
+	def base_damage_roll(self):
+		return self.weapon.roll_damage()
+	
 	def attack_pos(self, pos):
 		g = self.g
 		if (mon := g.monster_at(pos)) is None:
 			self.add_msg("You swing at empty space.")
+			self.use_energy(100)
 			return True
 		
 		sneak_attack = False
@@ -268,19 +306,26 @@ class Player(Entity):
 			margin = 1000 if one_in(2) else -1000
 		
 		if margin >= 0:	
-			damage = dice(1, 6) + div_rand(self.STR - 10, 2)
+			damage = self.base_damage_roll() + div_rand(self.STR - 10, 2)
 			crit = False
 			if margin >= 5:
 				crit = one_in(10)
 			
 			if sneak_attack:
+				eff_level = self.xp_level
+				if self.weapon.finesse:
+					eff_level = mult_rand_frac(eff_level, 4, 3)
+					eff_level += rng(0, 3)
 				msg = [
 					f"You catch {mon.get_name()} off-guard!",
 					f"You strike {mon.get_name()} while it was unaware!",
 					f"You sneak up and strike {mon.get_name()} from behind!"
 				]
 				self.add_msg(random.choice(msg))
-				damage += dice(1, 6)
+				max_bonus = 3 + mult_rand_frac(eff_level, 3, 2)
+				damage += dice(1, 2 + eff_level * 2)
+				
+				mon.use_energy(triangular_roll(0, 100))
 				
 			if self.has_status("Enlarged"):
 				damage += dice(1, 6)
@@ -289,18 +334,14 @@ class Player(Entity):
 		
 			armor = mon.get_armor()
 			if crit:
-				damage += dice(1, 6)
+				damage += self.base_damage_roll()
 				armor = div_rand(armor, 2)
 			
-			damage = apply_armor(damage, armor)	
 			damage = max(damage, 1)
+			damage = apply_armor(damage, armor)	
 			
-			noise = rng(1, 2) + mult_rand_frac(round(damage ** 0.6), 4, 5)
+			self.combat_noise(damage, sneak_attack)
 			
-			if sneak_attack:
-				noise = div_rand(noise, 2)
-			
-			self.make_noise(noise)
 			self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
 			if crit:
 				self.add_msg("Critical hit!", "good")
@@ -311,7 +352,6 @@ class Player(Entity):
 				self.on_defeat_monster(mon)
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
-			self.make_noise(rng(1, 2))
 			
 		attack_cost = 100
 		if self.has_status("Hasted"):
@@ -319,6 +359,7 @@ class Player(Entity):
 		self.use_energy(attack_cost)
 		
 		mon.alerted()
+		self.maybe_alert_monsters(15)
 		return True
 		
 	def on_defeat_monster(self, mon):
@@ -344,7 +385,7 @@ class Player(Entity):
 		target = Point(pos.x + dx, pos.y + dy)
 		if g.monster_at(target):
 			return self.attack_pos(target)
-			
+				
 		return False
 	
 	def add_status(self, name, dur, silent=False):
@@ -359,21 +400,11 @@ class Player(Entity):
 			else:
 				self.add_msg(eff_type.apply_msg, eff_type.type)
 		super().add_status(name, dur)
-	
-	def do_turn(self):
-		g = self.g
 		
-		used = self.energy_used
-		subt = used / 100
-		self.energy_used = 0
-		self.regen_tick += self.regen_rate() * subt
-		while self.regen_tick >= 1:
-			self.regen_tick -= 1
-			self.heal(1)
-			
+	def tick_poison(self, subt):
 		if self.poison > 0:
 			amount = 1 + div_rand(self.poison, 12)
-			dmg = mult_rand_frac(amount, used, 100)
+			dmg = mult_rand_frac(amount, subt, 100)
 			dmg = min(dmg, self.poison)
 			self.take_damage(dmg)	
 			self.poison -= dmg
@@ -381,7 +412,19 @@ class Player(Entity):
 				self.poison = 0
 			if dmg > 0 and (one_in(4) or x_in_y(self.poison, self.MAX_HP)):
 				self.add_msg("You feel sick due to the poison in your system.", "bad")
-				
+	
+	def do_turn(self, used):
+		g = self.g
+		
+		subt = used / 100
+		self.energy_used -= used
+		self.regen_tick += self.regen_rate() * subt
+		while self.regen_tick >= 1:
+			self.regen_tick -= 1
+			self.heal(1)
+			
+		self.tick_poison(used)
+		
 		for name in list(self.status.keys()):
 			self.status[name] -= used
 			if self.status[name] <= 0:
@@ -405,7 +448,7 @@ class Player(Entity):
 			if mon.check_alerted():
 				mon.alerted()
 				mon.target_entity(self)
-				
+		
 	def stealth_mod(self):
 		stealth = stat_mod(self.DEX)
 		if self.has_status("Reduced"):

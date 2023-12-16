@@ -236,11 +236,7 @@ class Board:
 				Point(cell.x-1, cell.y),
 				Point(cell.x+1, cell.y),
 				Point(cell.x, cell.y+1),
-				Point(cell.x, cell.y-1),
-				Point(cell.x-1, cell.y-1),
-				Point(cell.x+1, cell.y-1),
-				Point(cell.x-1, cell.y+1),
-				Point(cell.x+1, cell.y+1)
+				Point(cell.x, cell.y-1)
 			]
 			for p in neighbors:
 				if p in seen or p in fov:

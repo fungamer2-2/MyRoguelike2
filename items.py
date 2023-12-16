@@ -1,5 +1,6 @@
 from utils import *
 from const import *
+from json_obj import WeaponType
 import curses
 
 class Item:
@@ -19,7 +20,7 @@ class Potion(Item):
 	
 	def __init__(self):
 		super().__init__()
-		self.symbol = "P"
+		self.symbol = "p"
 		
 	def display_color(self):
 		return COLOR_DEEP_PINK2
@@ -105,3 +106,47 @@ class SpeedPotion(Potion):
 		return True
 
 #TODO: Melee and ranged weapons/JSON for them
+
+class Weapon:
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "weapon"
+		self.damage = Dice(0, 0, 1)
+		self.dmg_type = "bludgeon"
+		self.finesse = False
+		
+	def roll_damage(self):
+		return self.damage.roll()
+		
+	def display_color(self):
+		return COLOR_SILVER
+		
+	@classmethod
+	def from_type(cls, typ):
+		obj = cls()
+		obj.name = typ.name
+		obj.symbol = typ.symbol
+		obj.damage = typ.base_damage
+		obj.dmg_type = typ.damage_type
+		obj.finesse = typ.finesse
+		return obj
+		
+	def use(self, player):
+		player.add_msg(f"You wield a {self.name}.")
+		player.use_energy(100)
+		player.weapon = self
+		return True
+		
+class NullWeapon(Weapon):
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "unarmed"
+		self.damage = Dice(1, 1, 0)
+		
+	def roll_damage(self):
+		return 1 + one_in(3)
+		
+UNARMED = NullWeapon()
+	

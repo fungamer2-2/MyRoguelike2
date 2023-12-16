@@ -179,18 +179,21 @@ class Monster(Entity):
 		g = self.g
 		player = g.get_player()
 		
+		dist = self.distance(player)
+		
 		per_mod = stat_mod(self.WIS)
 		perception = 10 + per_mod
 		range = self.type.blindsight_range
-		if self.distance(player) <= range:
+		if dist <= range:
 			perception += 5
 			
 		perception += self.get_skill("perception")
 		
 		stealth_roll = player.stealth_roll()
+		
 		if stealth_roll < perception:
 			margin = perception - stealth_roll
-			return x_in_y(1, 6 - margin)	
+			return x_in_y(1, min(dist, 7) - margin)	
 		return False
 		
 	def tick(self):
@@ -232,7 +235,7 @@ class Monster(Entity):
 			return True
 		
 		#TODO: Invisibility check
-		return self.can_see()
+		return self.can_see() and not other.is_invisible()
 		
 	def speed_mult(self):
 		mult = super().speed_mult()
@@ -321,7 +324,7 @@ class Monster(Entity):
 		target = self.target_pos
 		dist = self.distance(target)
 		if (c := g.entity_at(target)) and c.is_player() and dist <= self.reach_dist():
-			if dist <= 1 or ((x_in_y(2, dist + 1) or one_in(3)) and self.has_clear_path_to(target)):
+			if dist <= 1 or ((x_in_y(3, dist + 2) or one_in(3)) and self.has_clear_path_to(target)):
 				if self.attack_pos(target):
 					return
 				
@@ -382,6 +385,7 @@ class Monster(Entity):
 		
 	def alerted(self):
 		g = self.g
+		player = g.get_player()
 		board = g.get_board()
 		if not self.is_aware():
 			if self.has_flag("PACK_TRAVEL"): #If we alert one member of the pack, alert the entire pack.
@@ -390,6 +394,8 @@ class Monster(Entity):
 						mon.set_state("AWARE")
 			if self.state == "IDLE":
 				self.set_state("AWARE")
+		
+		self.target_entity(player)
 				
 	def move_dir(self, dx, dy):
 		if super().move_dir(dx, dy):

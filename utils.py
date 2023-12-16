@@ -26,6 +26,13 @@ def gen_stats():
 			ind = -1
 			
 	return stats
+	
+def triangular_roll(a, b):
+	range = b - a
+	r1 = range//2
+	r2 = (range+1)//2
+	
+	return a + rng(0, r1) + rng(0, r2)
 
 def gauss_roll(mod):
 	return random.gauss(10 + mod, 5)
@@ -102,6 +109,11 @@ class Dice:
 	def roll(self):
 		return dice(self.num, self.sides) + self.mod
 		
+	def __str__(self):
+		s = f"{self.num}d{self.sides}"
+		if self.mod != 0:
+			s += f"+{self.mod}" if self.mod > 0 else str(self.mod)
+		return s
 	
 class Point:
 	
