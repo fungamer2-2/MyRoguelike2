@@ -18,6 +18,19 @@ class Entity(ABC):
 		self.poison = 0
 		self.status = {}
 		
+	def roll_to_hit(self, other):
+		if x_in_y(MIN_HIT_MISS_PROB, 100):
+			return 1000 if one_in(2) else -1000
+		
+		roll = gauss_roll(self.calc_to_hit_bonus(other))
+		evasion = other.calc_evasion()
+		
+		return roll - evasion
+		
+	def get_all_status_effects(self):
+		for name in self.status:
+			yield name
+		
 	def has_status(self, name):
 		g = self.g
 		g.check_effect_type(name)
@@ -28,12 +41,22 @@ class Entity(ABC):
 			self.status[name] = 0
 		self.status[name] += dur*100
 		
+	def adjust_duration(self, name, amount):
+		if self.has_status(name):
+			self.status[name] += amount*100
+			if self.status[name] <= 0:
+				self.remove_status(name)
+		
 	def remove_status(self, name):
 		if self.has_status(name):
 			del self.status[name]
 		
 	def use_energy(self, amount):
 		self.energy -= amount
+		
+	def use_move_energy(self):
+		cost = div_rand(10000, self.get_speed())
+		self.use_energy(cost)
 		
 	def is_player(self):
 		return False
@@ -42,7 +65,7 @@ class Entity(ABC):
 		return False
 		
 	def is_invisible(self):
-		return False
+		return self.has_status("Invisible")
 		
 	def calc_evasion(self):
 		dex = self.DEX
@@ -71,6 +94,19 @@ class Entity(ABC):
 	@abstractmethod
 	def get_name(self, capitalize=False):
 		return "Unknown Entity"
+	
+	@abstractmethod	
+	def calc_to_hit_bonus(self, other):
+		mod = 0
+		if not self.sees(other):
+			mod -= 5
+		if not other.sees(self):
+			mod += 5
+		return mod
+	
+	@abstractmethod	
+	def base_damage_roll(self):
+		return 1
 		
 	def add_msg(self, text, typ="neutral"):
 		g = self.g
@@ -146,7 +182,7 @@ class Entity(ABC):
 		return board.has_line_of_sight(self.pos, pos)
 		
 	def sees(self, other):	
-		if self is other:
+		if self is other: #We always see ourselves
 			return True
 		
 		return self.sees_pos(other.pos)
@@ -181,6 +217,9 @@ class Entity(ABC):
 			if x_in_y(dam * corr, 2000):
 				#TODO: Corrode armor
 				pass
-			
+	
+	def stealth_mod(self):
+		return stat_mod(self.DEX)	
 		
-		
+	def stealth_roll(self):
+		return gauss_roll(self.stealth_mod())	

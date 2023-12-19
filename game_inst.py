@@ -102,7 +102,6 @@ class Game:
 		
 	def init_game(self):
 		self.screen = curses.initscr()
-		
 		self.init_colors()
 		
 		curses.noecho()
@@ -120,6 +119,7 @@ class Game:
 		
 	def next_level(self):
 		player = self.get_player()
+		
 		self.level += 1
 		
 		if player.debug_wizard:
@@ -154,15 +154,20 @@ class Game:
 					return pos
 		
 		return None
+		
+	def create_weapon(self, id):
+		typ = self.get_weapon_type(id)
+		return Weapon.from_type(typ)
 	
 	def place_items(self):
 		board = self.get_board()
 		
 		potions = [
+			[InvisibilityPotion, 10_000_000_000],
 			[HealingPotion, 120],
-			[EnlargementPotion, 25],
-			[ShrinkingPotion, 25],
-			[SpeedPotion, 35]
+			[EnlargementPotion, 20],
+			[ShrinkingPotion, 20],
+			[SpeedPotion, 30]
 		]
 		
 		for _ in range(rng(1, 5)):
@@ -179,12 +184,10 @@ class Game:
 		]
 		
 		for _ in range(rng(1, 4)):
-			if one_in(2):
+			if x_in_y(2, 5):
 				pos = board.random_passable()
 				name = random_weighted(weapons)
-				typ = self.get_weapon_type(name)
-				weapon = Weapon.from_type(typ)
-				board.place_item_at(pos, weapon)
+				board.place_item_at(pos, self.create_weapon(name))
 			
 	def place_monsters(self):
 		eligible_types = {}
@@ -510,7 +513,18 @@ class Game:
 		for i, string in enumerate(strings2):
 			self.draw_string(i + offset, width + 6, string)
 			
-
+		offset += len(strings2) + 1
+		status = sorted(list(player.get_all_status_effects()))
+		if status:
+			for i, string in enumerate(status):
+				eff = self.get_effect_type(string)
+				color = curses.color_pair(MSG_TYPES[eff.type])
+				
+				self.draw_string(i + offset, width + 6, string, color)
+				
+				if i >= 12:
+					break
+					
 	def draw_monsters(self, offset_y):
 		player = self.get_player()
 		for m in player.visible_monsters():
@@ -531,7 +545,8 @@ class Game:
 		messages = self.msg_log.get_messages(8)
 		board = self.get_board()
 		y = board.height + offset_y
-		rows, cols = screen.getmaxyx()
+		rows, _ = screen.getmaxyx()
+		cols = board.width + 4
 		groups = []
 		
 		total_lines = 0
@@ -620,7 +635,10 @@ class Game:
 		
 		code = self.getch()
 		char = chr(code)
-		
+		if code == -1:
+			curses.flushinp()
+			return False
+				
 		if char == "w":
 			return player.move_dir(0, -1)
 		if char == "s":
@@ -698,7 +716,13 @@ class Game:
 			info.add_line("It hasn't noticed your presence yet.")
 		if monster.has_flag("PACK_TRAVEL"):
 			info.add_line("This creature travels in packs and takes advantage of its nearby allies to attack targets more easily.")
-		
+		blindsight = monster.type.blindsight_range
+		if blindsight > 0:
+			string = f"This creature has blindsight to a radius of {blindsight} tiles"
+			if not monster.can_see():
+				string += " (blind beyond this range)"
+			string += "."
+			info.add_line(string)
 		mon_speed = monster.get_speed()
 		player_speed = player.get_speed()
 		diff = mon_speed / player_speed
@@ -712,7 +736,7 @@ class Game:
 		 
 		
 		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), monster.calc_evasion())
-		monster_to_hit = gauss_roll_prob(monster.get_to_hit_bonus(), player.calc_evasion())
+		monster_to_hit = gauss_roll_prob(monster.calc_to_hit_bonus(player), player.calc_evasion())
 		
 		player_to_hit = player_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
 		monster_to_hit = monster_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2

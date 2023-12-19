@@ -58,6 +58,31 @@ class Player(Entity):
 		amount = 100 * self.xp_level ** 1.5
 		return round(amount/10)*10
 		
+	def inc_random_stat(self):
+		rand = rng(1, 6)
+		match rand:
+			case 1:
+				self.STR += 1
+				msg = "You feel stronger."
+			case 2:
+				self.DEX += 1
+				msg = "You feel more agile."
+			case 3:
+				self.CON += 1
+				self.recalc_max_hp()
+				msg = "You feel your physical endurance improve."
+			case 4:
+				self.INT += 1
+				msg = "You feel more intelligent."
+			case 5:
+				self.WIS += 1
+				msg = "You feel wiser."
+			case 6:
+				self.CHA += 1
+				msg = "You feel more charismatic."
+			
+		self.add_msg(msg, "good")
+		
 	def gain_xp(self, amount):
 		self.xp += amount
 		old_level = self.xp_level
@@ -70,34 +95,11 @@ class Player(Entity):
 			if self.xp_level % 3 == 0:
 				num += 1
 				
-				
 		if old_level != self.xp_level:
 			
 			self.add_msg(f"You have reached experience level {self.xp_level}!", "good")
 			for _ in range(num*2):
-				rand = rng(1, 6)
-				match rand:
-					case 1:
-						self.STR += 1
-						msg = "You feel stronger."
-					case 2:
-						self.DEX += 1
-						msg = "You feel more agile."
-					case 3:
-						self.CON += 1
-						self.recalc_max_hp()
-						msg = "You feel your physical endurance improve."
-					case 4:
-						self.INT += 1
-						msg = "You feel more intelligent."
-					case 5:
-						self.WIS += 1
-						msg = "You feel wiser."
-					case 6:
-						self.CHA += 1
-						msg = "You feel more charismatic."
-			
-				self.add_msg(msg, "good")
+				self.inc_random_stat()
 				
 	def calc_fov(self):
 		g = self.g
@@ -108,8 +110,10 @@ class Player(Entity):
 		return other in self.fov
 	
 	def sees(self, other):
-		if self is other:
+		if self is other: #We always see ourselves
 			return True
+		if other.is_invisible():
+			return False
 		
 		return self.sees_pos(other.pos)
 		
@@ -141,14 +145,24 @@ class Player(Entity):
 		
 		stat_bonus = stat_mod(stat)
 		mod = level_bonus + stat_bonus
-		if not mon.is_aware():
-			mod += 5
 		
+		adv = 0
+		
+		if not mon.is_aware():
+			adv += 1
+		if not mon.sees(self):
+			adv += 1
+			
+		if not self.sees(mon):
+			mod -= 5
+	
 		if self.has_status("Reduced"):
 			mod += 1.5
 			
 		if self.is_unarmed():
 			mod += 1
+			
+		mod += 5 * math.sqrt(adv)
 		return mod
 		
 	def regen_rate(self):
@@ -226,14 +240,15 @@ class Player(Entity):
 			if not mon.is_aware():
 				continue
 			reach = mon.reach_dist() 
-			if reach > 1 and not mon.has_clear_path_to(self.pos):
+			if not mon.can_reach_attack(self.pos):
 				continue
 			
 			if old_dist <= reach and self.distance(mon) > reach and mon.sees(self):
 				player_roll = triangular_roll(0, self.get_speed())
 				monster_roll = triangular_roll(0, mon.get_speed())
 				if monster_roll >= player_roll and one_in(2):
-					self.add_msg(f"{mon.get_name(True)} makes an opportunity attack as you move away!", "warning")
+					if player.sees(self):
+						self.add_msg(f"{mon.get_name(True)} makes an attack as you move away!", "warning")
 					oldenergy = mon.energy
 					mon.attack_pos(self.pos)
 					mon.energy = oldenergy
@@ -293,27 +308,24 @@ class Player(Entity):
 			return True
 		
 		sneak_attack = False
-		mod = self.calc_to_hit_bonus(mon)
+		finesse = self.weapon.finesse
+		
 		if not mon.is_aware():
-			if x_in_y(self.DEX, 60):
+			finesse_bonus = 5 if finesse else 0
+			if x_in_y(self.DEX + finesse_bonus, 70):
 				sneak_attack = True
 		
-		roll = gauss_roll(mod)
-		evasion = mon.calc_evasion()
-		margin = roll - evasion
+		att_roll = self.roll_to_hit(mon)
 		
-		if x_in_y(MIN_HIT_MISS_PROB, 100):
-			margin = 1000 if one_in(2) else -1000
-		
-		if margin >= 0:	
+		if att_roll >= 0:	
 			damage = self.base_damage_roll() + div_rand(self.STR - 10, 2)
 			crit = False
-			if margin >= 5:
+			if att_roll >= 5:
 				crit = one_in(10)
 			
 			if sneak_attack:
 				eff_level = self.xp_level
-				if self.weapon.finesse:
+				if finesse:
 					eff_level = mult_rand_frac(eff_level, 4, 3)
 					eff_level += rng(0, 3)
 				msg = [
@@ -342,14 +354,17 @@ class Player(Entity):
 			
 			self.combat_noise(damage, sneak_attack)
 			
-			self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
-			if crit:
-				self.add_msg("Critical hit!", "good")
-			mon.take_damage(damage)
-			if mon.is_alive():
-				self.add_msg(f"It has {mon.HP}/{mon.MAX_HP} HP.")
+			if damage <= 0:
+				self.add_msg(f"You hit {mon.get_name()} but deal no damage.")
 			else:
-				self.on_defeat_monster(mon)
+				self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
+				if crit:
+					self.add_msg("Critical hit!", "good")
+				mon.take_damage(damage)
+				if mon.is_alive():
+					self.add_msg(f"It has {mon.HP}/{mon.MAX_HP} HP.")
+				else:
+					self.on_defeat_monster(mon)
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
 			
@@ -357,6 +372,7 @@ class Player(Entity):
 		if self.has_status("Hasted"):
 			attack_cost = 75
 		self.use_energy(attack_cost)
+		self.adjust_duration("Invisible", -rng(0, 10))
 		
 		mon.alerted()
 		self.maybe_alert_monsters(15)
@@ -370,19 +386,22 @@ class Player(Entity):
 		
 		if len(g.get_monsters()) <= 0:
 			g.place_stairs()
-			self.add_msg("The stairs proceeding downward to the next level begin to open up...")
+			self.add_msg("The stairs proceeding downward begin to open up...")
 			if g.level == 1:
 				self.add_msg("You have completed the first level! Move onto the '>', then press the '>' key to go downstairs.", "info")
 			
 	def move_dir(self, dx, dy):
-		oldpos = self.pos.copy()
-		if super().move_dir(dx, dy):
-			self.use_energy(div_rand(10000, self.get_speed()))
-			self.on_move(oldpos)	
-			return True
 		g = self.g
+		
+		oldpos = self.pos.copy()
 		pos = self.pos	
 		target = Point(pos.x + dx, pos.y + dy)
+		
+		if super().move_dir(dx, dy):
+			self.use_move_energy()
+			self.on_move(oldpos)	
+			return True
+		
 		if g.monster_at(target):
 			return self.attack_pos(target)
 				
@@ -413,6 +432,25 @@ class Player(Entity):
 			if dmg > 0 and (one_in(4) or x_in_y(self.poison, self.MAX_HP)):
 				self.add_msg("You feel sick due to the poison in your system.", "bad")
 	
+	def remove_status(self, name, silent=False):
+		g = self.g
+		
+		super().remove_status(name)
+		
+		if not silent:	
+			eff = g.get_effect_type(name)
+			typ = eff.type
+			msg_type = "neutral"
+			if typ in ["good", "info"]:
+				msg_type = "info"
+			elif typ == "bad":
+				msg_type = "good"
+					
+			self.add_msg(eff.remove_msg, msg_type)
+				
+		if name == "Enlarged" or name == "Reduced":
+			self.recalc_max_hp()
+
 	def do_turn(self, used):
 		g = self.g
 		
@@ -429,28 +467,13 @@ class Player(Entity):
 			self.status[name] -= used
 			if self.status[name] <= 0:
 				self.remove_status(name)
-				
-				eff = g.get_effect_type(name)
-				typ = eff.type
-				msg_type = "neutral"
-				if typ in ["good", "info"]:
-					msg_type = "info"
-				elif typ == "bad":
-					msg_type = "good"
-				
-				self.add_msg(eff.remove_msg, msg_type)
-				
-				if name == "Enlarged" or name == "Reduced":
-					self.recalc_max_hp()
 					
 		for mon in self.visible_monsters():
-			name = mon.type.name
 			if mon.check_alerted():
 				mon.alerted()
-				mon.target_entity(self)
 		
 	def stealth_mod(self):
-		stealth = stat_mod(self.DEX)
+		stealth = super().stealth_mod()
 		if self.has_status("Reduced"):
 			stealth += 3
 		elif self.has_status("Enlarged"):

@@ -55,7 +55,7 @@ class EnlargementPotion(Potion):
 			player.use_energy(50)
 			dur = rng(150, 300)	
 		
-		player.remove_status("Reduced")
+		player.remove_status("Reduced", True)
 		player.add_status("Enlarged", dur)
 		player.use_energy(100)
 		player.recalc_max_hp()
@@ -79,7 +79,7 @@ class ShrinkingPotion(Potion):
 			player.use_energy(50)
 			dur = rng(150, 300)	
 			
-		player.remove_status("Enlarged")
+		player.remove_status("Enlarged", True)
 		player.add_status("Reduced", dur)
 		player.use_energy(100)
 		player.recalc_max_hp()
@@ -103,6 +103,26 @@ class SpeedPotion(Potion):
 			dur = rng(20, 60)
 		player.use_energy(100)		
 		player.add_status("Hasted", dur)	
+		return True
+		
+class InvisibilityPotion(Potion):
+	description = "A potion with a rather transparent liquid."
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "invisibility potion"
+		
+	def display_color(self):
+		return COLOR_BLUE
+			
+	def use(self, player):
+		player.add_msg("You drink the invisibility potion.")
+		if player.has_status("Invisible"):
+			dur = rng(20, 40)
+		else:
+			dur = rng(60, 100)
+		player.use_energy(100)		
+		player.add_status("Invisible", dur)	
 		return True
 
 #TODO: Melee and ranged weapons/JSON for them

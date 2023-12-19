@@ -2,6 +2,7 @@ from entity import Entity
 from player import Player
 from utils import *
 from const import *
+from items import Weapon
 from pathfinding import find_path
 from collections import deque
 import random, curses
@@ -22,6 +23,7 @@ class Monster(Entity):
 		self.to_hit = 0
 		self.soundf = 0
 		self.damage = Dice(0,0,0)
+		self.weapon = None
 		self.type = None
 		
 	def is_monster(self):
@@ -55,6 +57,13 @@ class Monster(Entity):
 		m.HP = m.MAX_HP = typ.HP
 		m.to_hit = typ.to_hit
 		m.damage = typ.base_damage
+		
+		g = m.g
+		
+		weap = typ.weapon
+		if weap:
+			weap = g.create_weapon(weap)
+		m.weapon = weap
 		return m
 		
 	def has_flag(self, name):
@@ -70,10 +79,6 @@ class Monster(Entity):
 	def get_diff_level(self):
 		return self.type.diff
 		
-	def use_move_energy(self):
-		cost = div_rand(10000, self.get_speed())
-		self.use_energy(cost)
-	
 	def get_name(self, capitalize=False):
 		the = "The" if capitalize else "the"
 		return the + " " + self.name
@@ -85,21 +90,13 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		
-		is_pack = self.has_flag("PACK_TRAVEL")
-		
 		def passable_func(p):
 			return p == pos or board.passable(p)
 		
 		def cost_func(p):
 			cost = 1
-			if (c := g.monster_at(p)):
+			if (c := g.monster_at(p)) and not self.will_attack(c):
 				cost += 2
-			if is_pack:
-				num = 0
-				for m in g.monsters_in_radius(p, 1):
-					if self is not m and self.is_ally(m):
-						num += 1
-				cost /= num + 1
 			
 			return cost
 		
@@ -117,8 +114,10 @@ class Monster(Entity):
 			return True
 		
 		if self.path:
-			if pos != self.path[-1] or not self.move_to(self.path.popleft()):
-				#Either target tile changed, or path is blocked; recalculate path
+			can_path = pos == self.path[-1] and self.distance(self.path[0]) <= 1
+			
+			if not (can_path and self.move_to(self.path.popleft())):
+				#Either target tile changed, path is blocked, or we're off-course; recalculate path
 				self.calc_path_to(pos)
 				if self.path:
 					if self.move_to(self.path.popleft()):
@@ -135,7 +134,7 @@ class Monster(Entity):
 			
 	def base_pursue_duration(self):
 		#How long to continue tracking after losing sight of the player
-		return 4 * self.INT + 8
+		return 5 * self.INT + 10
 		
 	def set_target(self, pos):
 		if self.has_target():
@@ -187,6 +186,10 @@ class Monster(Entity):
 		if dist <= range:
 			perception += 5
 			
+		if not self.sees(player):
+			#Player is invisible
+			perception -= 5
+			
 		perception += self.get_skill("perception")
 		
 		stealth_roll = player.stealth_roll()
@@ -211,7 +214,7 @@ class Monster(Entity):
 			self.poison -= amount
 			if self.poison < 0:
 				self.poison = 0
-		elif x_in_y(self.CON, 160) and not self.has_flag("NO_REGEN"):
+		elif one_in(16) and not self.has_flag("NO_REGEN"):
 			self.heal(1)
 			
 	def do_turn(self):
@@ -225,6 +228,9 @@ class Monster(Entity):
 			self.energy = 0
 		
 	def sees(self, other):
+		if self is other:
+			return True
+			
 		if not super().sees(other):
 			return False
 		
@@ -302,7 +308,20 @@ class Monster(Entity):
 			return self.move_dir(dx, 0) or (not switched and self.move_dir(0, dy))
 		else:
 			return self.move_dir(0, dy) or (not switched and self.move_dir(dx, 0))
-
+	
+	def will_attack(self, c):
+		return c.is_player()
+		
+	def can_reach_attack(self, target):
+		#Is attacking our target viable from our current position?
+		
+		dist = self.distance(target)
+		if dist <= 1:
+			return True
+		
+		reach = self.reach_dist()
+		return dist <= reach and self.has_clear_path_to(target)
+	
 	def move_to_target(self):
 		if not self.has_target():
 			return
@@ -323,8 +342,8 @@ class Monster(Entity):
 		
 		target = self.target_pos
 		dist = self.distance(target)
-		if (c := g.entity_at(target)) and c.is_player() and dist <= self.reach_dist():
-			if dist <= 1 or ((x_in_y(3, dist + 2) or one_in(3)) and self.has_clear_path_to(target)):
+		if (c := g.entity_at(target)) and self.will_attack(c):
+			if self.can_reach_attack(target) and ((x_in_y(3, dist + 2) or one_in(3))):
 				if self.attack_pos(target):
 					return
 				
@@ -379,6 +398,8 @@ class Monster(Entity):
 		self.use_energy(1000)
 		self.add_msg_if_u_see(self, f"{self.get_name(True)} dies!", "good")
 		board.erase_collision_cache(self.pos)
+		if self.weapon:
+			board.place_item_at(self.pos, self.weapon)
 		
 	def is_aware(self):
 		return self.state in ["AWARE", "TRACKING"]
@@ -392,8 +413,8 @@ class Monster(Entity):
 				for mon in g.monsters_in_radius(self.pos, 6):	
 					if self.is_ally(mon):
 						mon.set_state("AWARE")
-			if self.state == "IDLE":
-				self.set_state("AWARE")
+						mon.target_entity(player)
+			self.set_state("AWARE")
 		
 		self.target_entity(player)
 				
@@ -403,7 +424,16 @@ class Monster(Entity):
 			return True
 		return False
 		
-	def get_to_hit_bonus(self):
+	def base_damage_dice(self):
+		damage = self.damage
+		if self.weapon:
+			damage = self.weapon.damage
+		return damage
+		
+	def base_damage_roll(self):
+		return self.base_damage_dice().roll()
+		
+	def calc_to_hit_bonus(self, c):
 		g = self.g
 		board = g.get_board()
 		
@@ -430,8 +460,8 @@ class Monster(Entity):
 			if allies > 0: #Pack tactics gives a bonus to-hit if there are allies nearby
 				bonus = 2.5*allies
 				mod += bonus
-				
-		return mod
+			
+		return mod + super().calc_to_hit_bonus(c)
 		
 	def calc_evasion(self):
 		ev = super().calc_evasion()
@@ -448,40 +478,48 @@ class Monster(Entity):
 		
 	def get_armor(self):
 		return self.type.armor
+		
+	def get_hit_msg(self, c):
+		g = self.g
+		player = g.get_player()
+		
+		u_see_attacker = player.sees(self)
+		u_see_defender = player.sees(c)
+		
+		monster_name = self.get_name() if u_see_attacker else "something"
+		target_name = c.get_name() if u_see_defender else "something"
+			
+		msg = self.type.attack_msg
+		msg = msg.replace("<monster>", monster_name)
+		msg = msg.replace("<target>", target_name)
+			
+		if msg.startswith(monster_name):
+			msg = msg.capitalize()
+			
+		return msg + "."
 			
 	def attack_pos(self, pos):
 		g = self.g
 		board = g.get_board()
+		player = g.get_player()
 		if not (c := g.entity_at(pos)):
 			return False
 		
-		assert c.is_player() #TODO: Remove when it's possible for monsters to attack other monsters
+		att_roll = self.roll_to_hit(c)
+		u_see_attacker = player.sees(self)
+		u_see_defender = player.sees(c)
+		print_msg = u_see_attacker or u_see_defender
 		
-		mod = self.get_to_hit_bonus()
-		
-		roll = gauss_roll(mod)
-		margin = roll - c.calc_evasion()
-		
-		if x_in_y(MIN_HIT_MISS_PROB, 100):
-			margin = 1000 if one_in(2) else -1000
-		
-		if margin >= 0:
-			damage = self.damage.roll()
+		if att_roll >= 0:
+			damage = self.base_damage_roll()
 			stat = self.DEX if self.type.use_dex_melee else self.STR
 			damage += div_rand(stat - 10, 2)
 			damage = max(damage, 1)	
 			msg_type = "bad" if c.is_player() else "neutral"
 			
-			monster_name = self.get_name()
-			target_name = c.get_name()
-			msg = self.type.attack_msg
-			msg = msg.replace("<monster>", monster_name)
-			msg = msg.replace("<target>", target_name)
-			
-			if msg.startswith(monster_name):
-				msg = msg.capitalize()
-			
-			self.add_msg_if_u_see(self, f"{msg}.", msg_type)
+			if print_msg:
+				self.add_msg_if_u_see(self, self.get_hit_msg(c), msg_type)
+				
 			c.take_damage(damage)
 			poison_typ = self.type.poison
 			if poison_typ:
@@ -495,7 +533,7 @@ class Monster(Entity):
 					typ = "bad" if c.is_player() else "neutral"
 					dmg = rng(0, amount)
 					if dmg > 0:
-						c.add_msg_u_or_mons("You are poisoned!", f"{self.get_name(True)} appears to be poisoned.", typ)
+						c.add_msg_u_or_mons("You are poisoned!", f"{self.get_name(True)} is poisoned!", typ)
 						c.poison += dmg
 						if poison_typ.slowing and x_in_y(dmg, dmg+3):
 							paralyzed = False
@@ -505,11 +543,32 @@ class Monster(Entity):
 								
 							c.add_status("Slowed", rng(dmg, dmg*4), paralyzed)
 							
-		else:			
+		elif print_msg:
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {c.get_name()}.")
 		
 		self.use_energy(100)
 		return True
+		
+	def random_guess_invis(self):
+		g = self.g
+		board = g.get_board()
+		possibilities = []
+		for pos in board.points_in_radius(self.pos, 3):
+			if self.sees_pos(pos):
+				possibilities.append(pos)
+		if possibilities:
+			p = random.choice(possibilities)
+			self.set_target(p)	
+	
+	def determine_invis(self, c):
+		g = self.g
+		player = g.get_player()
+		
+		dist = self.distance(c)
+		if dist <= 1 and one_in(4):
+			return True
+			
+		return self.perception_roll() >= player.stealth_roll()
 		
 	def perception_roll(self):
 		return self.roll_wisdom() + self.get_skill("perception")
@@ -526,7 +585,18 @@ class Monster(Entity):
 				if self.sees(player):
 					self.target_entity(player)
 					if self.id == "bat" and one_in(5):
-						self.set_rand_target()		
+						self.set_rand_target()
+				elif self.sees_pos(player.pos): 
+					#Target is in LOS, but invisible	
+					reached_target = self.target_pos == self.pos
+					perceived_invis = self.determine_invis(player)
+					
+					if self.target_pos != player.pos and reached_target:
+						if perceived_invis:	
+							self.target_entity(player)
+						else:
+							self.random_guess_invis()
+								
 				else:
 					self.set_state("TRACKING")
 					self.target_entity(player)

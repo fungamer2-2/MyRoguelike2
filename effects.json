@@ -33,6 +33,13 @@
 		"apply_msg": "You suddenly become unable to move!",
 		"extend_msg": "You feel even more paralyzed.",
 		"remove_msg": "You can finally move again."
+	},
+	{
+		"name": "Invisible",
+		"type": "good",
+		"apply_msg": "You become invisible.",
+		"extend_msg": "You become even more invisible.",
+		"remove_msg": "Your fade into view once again."
 	}
 	
 ]

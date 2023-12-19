@@ -98,9 +98,10 @@
 		"use_dex_melee": true,
 		"size": "small",
 		"speed": 100,
-		"base_damage": "1d4",
+		"weapon": "dagger",
 		"attack_msg": "<monster> hits <target> with a dagger",
-		"flags": [ "SEES", "PACK_TRAVEL" ]
+		"flags": [ "SEES", "PACK_TRAVEL" ],
+		"weapon": "dagger"
 	},
 	{
 		"id": "giant_rat",
