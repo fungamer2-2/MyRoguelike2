@@ -163,7 +163,7 @@ class Game:
 		board = self.get_board()
 		
 		potions = [
-			[InvisibilityPotion, 10_000_000_000],
+			[InvisibilityPotion, 25],
 			[HealingPotion, 120],
 			[EnlargementPotion, 20],
 			[ShrinkingPotion, 20],
