@@ -3,7 +3,6 @@ from player import Player
 from utils import *
 from const import *
 from items import Weapon
-from pathfinding import find_path
 from collections import deque
 import random, curses
 from json_obj import *
@@ -90,9 +89,6 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		
-		def passable_func(p):
-			return p == pos or board.passable(p)
-		
 		def cost_func(p):
 			cost = 1
 			if (c := g.monster_at(p)) and not self.will_attack(c):
@@ -100,7 +96,7 @@ class Monster(Entity):
 			
 			return cost
 		
-		path = find_path(board, self.pos, pos, passable_func, cost_func)
+		path = board.get_path(self.pos, pos, cost_func)
 		
 		self.path.clear()
 		if not path:
@@ -479,7 +475,7 @@ class Monster(Entity):
 	def get_armor(self):
 		return self.type.armor
 		
-	def get_hit_msg(self, c):
+	def get_hit_msg(self, c, damage):
 		g = self.g
 		player = g.get_player()
 		
@@ -496,7 +492,13 @@ class Monster(Entity):
 		if msg.startswith(monster_name):
 			msg = msg.capitalize()
 			
+		if damage <= 0:
+			msg += " but deals no damage"
+			
 		return msg + "."
+		
+	def get_acid_strength(self):
+		return self.type.acid_strength
 			
 	def attack_pos(self, pos):
 		g = self.g
@@ -509,46 +511,59 @@ class Monster(Entity):
 		u_see_attacker = player.sees(self)
 		u_see_defender = player.sees(c)
 		print_msg = u_see_attacker or u_see_defender
-		
+			
 		if att_roll >= 0:
 			damage = self.base_damage_roll()
 			stat = self.DEX if self.type.use_dex_melee else self.STR
 			damage += div_rand(stat - 10, 2)
-			damage = max(damage, 1)	
-			msg_type = "bad" if c.is_player() else "neutral"
-			
+			damage = max(damage, 1)
+			damage = apply_armor(damage, c.get_armor())
+				
+			msg_type = "bad" if (c.is_player() and damage > 0) else "neutral"
 			if print_msg:
-				self.add_msg_if_u_see(self, self.get_hit_msg(c), msg_type)
+				self.add_msg_if_u_see(self, self.get_hit_msg(c, damage), msg_type)
 				
 			c.take_damage(damage)
-			poison_typ = self.type.poison
-			if poison_typ:
-				amount = poison_typ.max_damage
-				eff_con = random.gauss(c.CON, 2.5)
-				
-				eff_potency = poison_typ.potency - round((eff_con - 10)/1.3)
-				eff_potency = clamp(eff_potency, 0, 20)
-				if eff_potency > 0:
-					amount = mult_rand_frac(amount, eff_potency, 20)
-					typ = "bad" if c.is_player() else "neutral"
-					dmg = rng(0, amount)
-					if dmg > 0:
-						c.add_msg_u_or_mons("You are poisoned!", f"{self.get_name(True)} is poisoned!", typ)
-						c.poison += dmg
-						if poison_typ.slowing and x_in_y(dmg, dmg+3):
-							paralyzed = False
-							if self.has_status("Slowed") and one_in(4):
-								c.add_status("Paralyzed", rng(1, 5))
-								paralyzed = True
-								
-							c.add_status("Slowed", rng(dmg, dmg*4), paralyzed)
-							
-		elif print_msg:
-			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {c.get_name()}.")
+			
+			if damage > 0:
+				if self.type.poison:
+					self.inflict_poison_to(c)
+				acid = self.get_acid_strength()
+				if acid > 0:
+					c.hit_with_acid(acid)
+		elif u_see_attacker:
+			defender = c.get_name() if u_see_defender else "something"
+			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {defender}.")
 		
 		self.use_energy(100)
 		return True
 		
+	def acid_resist(self):
+		if self.has_flag("ACID_RESISTANT"):
+			return 1
+		return 0	
+	
+	def inflict_poison_to(self, c):
+		poison_typ = self.type.poison
+		amount = poison_typ.max_damage
+		eff_con = random.gauss(c.CON, 2.5)
+				
+		eff_potency = poison_typ.potency - round((eff_con - 10)/1.3)
+		eff_potency = clamp(eff_potency, 0, 20)
+		if eff_potency > 0:
+			amount = mult_rand_frac(amount, eff_potency, 20)
+			typ = "bad" if c.is_player() else "neutral"
+			dmg = rng(0, amount)
+			if dmg > 0:
+				c.add_msg_u_or_mons("You are poisoned!", f"{self.get_name(True)} is poisoned!", typ)
+				c.poison += dmg
+				if poison_typ.slowing and x_in_y(dmg, dmg+3):
+					paralyzed = False
+					if self.has_status("Slowed") and one_in(5):
+						c.add_status("Paralyzed", rng(1, 5))
+						paralyzed = True			
+					c.add_status("Slowed", rng(dmg, dmg*4), paralyzed)
+									
 	def random_guess_invis(self):
 		g = self.g
 		board = g.get_board()

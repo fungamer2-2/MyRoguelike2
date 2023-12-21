@@ -204,20 +204,34 @@ class Entity(ABC):
 	def roll_wisdom(self):
 		return gauss_roll(stat_mod(self.WIS))
 		
-	def hit_with_acid(self, strength, corr):
+	def acid_resist(self):
+		#Resistance to acid
+		# -1 is vulnerable, +1 is resistant, +2 is immune
+		return 0
+		
+	def hit_with_acid(self, strength):
+		res = self.acid_resist()
+		if res >= 2:
+			return
+			
+		if res < 0:
+			strength *= 2
+		elif res == 1:
+			strength = div_rand(strength, 2)
+			
+		armor = self.get_armor()
+		strength -= rng(0, armor)
+		
 		if strength <= 0:
 			return
+		
 		dam = rng(1, strength) 
 		typ = "bad" if self.is_player() else "neutral"
-	
-		self.add_msg_u_or_mons("The acid burns you!", f"{self.get_name(True)} is burned by acid!", typ)
+		
+		severity = " terribly" if res < 0 else ""
+		self.add_msg_u_or_mons("The acid burns you{severity}!", f"{self.get_name(True)} is burned{severity} by the acid!", typ)
 		self.take_damage(dam)
 		
-		if self.is_player():
-			if x_in_y(dam * corr, 2000):
-				#TODO: Corrode armor
-				pass
-	
 	def stealth_mod(self):
 		return stat_mod(self.DEX)	
 		

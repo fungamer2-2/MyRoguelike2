@@ -32,6 +32,7 @@ class Game:
 		self.select_mon = None
 		self.noise_events = []
 		self.revealed = set()
+		self.delay = False
 		
 	def add_noise_event(self, pos, loudness, src=None):
 		if loudness > 0:
@@ -107,8 +108,9 @@ class Game:
 		curses.noecho()
 		curses.curs_set(False)
 		Entity.g = self
+		self.load_json_data()
 		
-		self.load_json_data()	
+		self.init_player()	
 		self.generate_level()		
 		self.draw_board()
 		
@@ -138,7 +140,7 @@ class Game:
 		board.clear_los_cache()
 		board.clear_collision_cache()
 		board.procgen_level()
-		self.place_player()
+		self.init_player()
 		self.place_monsters()
 		self.place_items()
 		
@@ -164,7 +166,7 @@ class Game:
 		
 		potions = [
 			[InvisibilityPotion, 25],
-			[HealingPotion, 120],
+			[HealingPotion, 130],
 			[EnlargementPotion, 20],
 			[ShrinkingPotion, 20],
 			[SpeedPotion, 30]
@@ -180,11 +182,13 @@ class Game:
 			["club", 100],
 			["dagger", 60],
 			["greatclub", 25],
-			["handaxe", 60]
+			["handaxe", 60],
+			["battleaxe", 30],
+			["greatsword", 20]
 		]
 		
 		for _ in range(rng(1, 4)):
-			if x_in_y(2, 5):
+			if x_in_y(3, 8):
 				pos = board.random_passable()
 				name = random_weighted(weapons)
 				board.place_item_at(pos, self.create_weapon(name))
@@ -260,6 +264,12 @@ class Game:
 		import os
 		os.system("cls" if os.name == "nt" else "clear")
 		self.window_init = False
+	
+	def init_player(self):
+		player = self.get_player()	
+		self.place_player()
+		
+		player.recalc_max_hp()
 		
 	def place_player(self):
 		board = self.get_board()
@@ -399,14 +409,20 @@ class Game:
 				
 	def place_stairs(self):
 		board = self.get_board()
-		pos = board.random_passable()
+		
+		for _ in range(5):
+			pos = board.random_passable()
+			if not self.items_at(pos):
+				break
 		
 		tile = board.get_tile(pos)
-		tile.stair = True
+		tile.stair = 1
 			
 	def getch(self, wait=True):
 		screen = self.screen
-		screen.nodelay(not wait)
+		if wait != self.delay:
+			self.delay = wait
+			screen.nodelay(not wait)
 		code = screen.getch()
 		return code
 	
@@ -451,7 +467,10 @@ class Game:
 			elif tile.stair:
 				symbol = STAIR_SYMBOL
 			else:
-				symbol = " "
+				symbol = "." if seen else " "
+				if seen:
+					color = curses.color_pair(COLOR_GRAY)
+				
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color)
 			
 	def draw_stats(self):
@@ -681,8 +700,17 @@ class Game:
 		
 		self.add_message("View info of which monster? (Use the a and d keys to select, then press Enter)")
 		
-		cursor = (len(monsters)-1)//2
+		cursor = 0
 		mon = None
+		
+		min_dist = 999
+		nearest = None
+		for i, m in enumerate(monsters):
+			dist = player.distance(m)
+			if dist < min_dist:
+				min_dist = dist
+				nearest = m
+				cursor = i
 		while True:
 			self.set_mon_select(monsters[cursor])
 			self.draw_board()
@@ -787,13 +815,12 @@ class Game:
 		
 		can_scroll = max_scroll > 0
 		
-		string = "Use which item? Enter a number from 1 - 9, then press Enter. Press 0 to cancel. "
+		string = "Use which item? Enter a number from 1 - 9, then press Enter. Press 0 to cancel. Press Shift+D to view description."
 		if can_scroll:
 			string += " (W and S keys to scroll)"
 		
 		select = 0
-		
-		
+			
 		while True:
 			screen.erase()
 			screen.addstr(0, 0, string)
@@ -815,13 +842,17 @@ class Game:
 					scroll += 1
 				scroll = clamp(scroll, 0, max_scroll)
 			
+			item = player.inventory[scroll + select]
+			
 			if char == "0":
+				return None
+			elif char == "D":
+				self.add_message(item.name + " - " + item.description, "info")
 				return None
 			elif char in "123456789":
 				select = int(char) - 1
 			
 			if key == 10:
-				item = player.inventory[scroll + select]
 				return item
 		
 class PopupInfo:

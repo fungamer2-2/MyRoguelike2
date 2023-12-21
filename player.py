@@ -23,6 +23,7 @@ class Player(Entity):
 		self.is_resting = False
 		self.debug_wizard = False
 		self.weapon = UNARMED
+		self.armor = None
 		self.inventory = []
 		
 	def is_unarmed(self):
@@ -44,6 +45,10 @@ class Player(Entity):
 	def add_to_inventory(self, item):
 		self.inventory.append(item)
 		
+	def remove_from_inventory(self, item):
+		if item in self.inventory:
+			self.inventory.remove(item)
+		
 	def interrupt(self):
 		self.is_resting = False
 		
@@ -60,6 +65,7 @@ class Player(Entity):
 		
 	def inc_random_stat(self):
 		rand = rng(1, 6)
+		
 		match rand:
 			case 1:
 				self.STR += 1
@@ -140,7 +146,10 @@ class Player(Entity):
 	def calc_to_hit_bonus(self, mon):
 		level_bonus = (self.xp_level - 1) / 3
 		stat = (self.STR + self.DEX) / 2
-		if self.weapon.finesse:
+		
+		finesse = self.weapon.finesse
+		heavy = self.weapon.heavy
+		if finesse:
 			stat = max(self.STR, self.DEX) * 1.1
 		
 		stat_bonus = stat_mod(stat)
@@ -157,7 +166,10 @@ class Player(Entity):
 			mod -= 5
 	
 		if self.has_status("Reduced"):
-			mod += 1.5
+			if heavy:
+				mod -= 3
+			else:
+				mod += 1.5
 			
 		if self.is_unarmed():
 			mod += 1
@@ -171,10 +183,11 @@ class Player(Entity):
 		
 	def recalc_max_hp(self):
 		base_hp = 10
-		mult = base_hp * 0.75
+		mult = base_hp * 0.7
 		level_mod = mult * (self.xp_level - 1)
 		level_mod *= self.CON / 10
-		level_mod = max(level_mod, 2 * (self.xp_level - 1))
+		level_mod += (self.CON - 10) / 2
+		level_mod = max(level_mod, (self.xp_level - 1))
 		val = base_hp + level_mod
 		if self.has_status("Enlarged"):
 			val *= 1.5
@@ -220,9 +233,9 @@ class Player(Entity):
 		if not item:
 			return False
 		used = item.use(self)
-		if used:
-			self.inventory.remove(item)
-		return used	
+		if used == ItemUseResult.CONSUMED:
+			self.remove_from_inventory(item)
+		return used != ItemUseResult.NOT_USED	
 		
 	def on_move(self, oldpos):
 		g = self.g
@@ -240,14 +253,14 @@ class Player(Entity):
 			if not mon.is_aware():
 				continue
 			reach = mon.reach_dist() 
-			if not mon.can_reach_attack(self.pos):
+			if reach > 1 and not mon.has_clear_path_to(self.pos):
 				continue
 			
 			if old_dist <= reach and self.distance(mon) > reach and mon.sees(self):
 				player_roll = triangular_roll(0, self.get_speed())
 				monster_roll = triangular_roll(0, mon.get_speed())
 				if monster_roll >= player_roll and one_in(2):
-					if player.sees(self):
+					if self.sees(mon):
 						self.add_msg(f"{mon.get_name(True)} makes an attack as you move away!", "warning")
 					oldenergy = mon.energy
 					mon.attack_pos(self.pos)
@@ -257,7 +270,7 @@ class Player(Entity):
 		g = self.g
 		board = g.get_board()
 		tile = board.get_tile(self.pos)
-		if not tile.stair:
+		if tile.stair <= 0:
 			self.add_msg("You can't go down there.")
 			return False
 		
@@ -317,8 +330,11 @@ class Player(Entity):
 		
 		att_roll = self.roll_to_hit(mon)
 		
-		if att_roll >= 0:	
-			damage = self.base_damage_roll() + div_rand(self.STR - 10, 2)
+		if att_roll >= 0:
+			stat = self.STR
+			if finesse:
+				stat = max(stat, self.DEX)	
+			damage = self.base_damage_roll() + div_rand(stat - 10, 2)
 			crit = False
 			if att_roll >= 5:
 				crit = one_in(10)
@@ -369,10 +385,14 @@ class Player(Entity):
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
 			
 		attack_cost = 100
+		if self.weapon.heavy:
+			attack_cost = 120
+			
 		if self.has_status("Hasted"):
-			attack_cost = 75
+			attack_cost = mult_rand_frac(attack_cost, 3, 4)
+			
 		self.use_energy(attack_cost)
-		self.adjust_duration("Invisible", -rng(0, 10))
+		self.adjust_duration("Invisible", -rng(0, 12))
 		
 		mon.alerted()
 		self.maybe_alert_monsters(15)
@@ -380,7 +400,7 @@ class Player(Entity):
 		
 	def on_defeat_monster(self, mon):
 		g = self.g
-		xp_gain = 15 * mon.get_diff_level()**1.5
+		xp_gain = 15 * mon.get_diff_level()**1.75
 		xp_gain = round(xp_gain/5)*5
 		self.gain_xp(xp_gain)
 		
@@ -482,4 +502,12 @@ class Player(Entity):
 		return stealth		
 				
 	def stealth_roll(self):
-		return gauss_roll(self.stealth_mod())	
+		return gauss_roll(self.stealth_mod())
+		
+	def get_armor(self):
+		if self.armor:
+			armor = self.armor
+			return armor.protection
+		return 0
+		
+	

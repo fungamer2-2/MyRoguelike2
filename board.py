@@ -1,13 +1,14 @@
 from utils import *
 import random
 from collections import defaultdict
+from pathfinding import find_path
 
 class Tile:
 	
 	def __init__(self):
 		self.wall = False
 		self.revealed = False
-		self.stair = False
+		self.stair = 0
 		self.items = []
 		
 	def is_passable(self):
@@ -264,3 +265,14 @@ class Board:
 						fov.add(p)
 				
 		return fov
+		
+	def get_path(self, start, end, cost_func=None):
+		def passable_func(p):
+			return p == start or self.passable(p)
+		
+		if cost_func is None:
+			cost_func = lambda p: 1
+			
+		return find_path(self, start, end, passable_func, cost_func)
+		
+		

@@ -191,5 +191,26 @@
 		"base_damage": "1d6",
 		"attack_msg": "<monster> hits <target> with a scimitar",
 		"flags": [ "SEES" ]
+	},
+	{
+		"id": "gray_ooze",
+		"name": "gray ooze",
+		"symbol": "8",
+		"STR": 12,
+		"DEX": 6,
+		"CON": 16,
+		"INT": 1,
+		"WIS": 6,
+		"CHA": 2,
+		"HP": 22,
+		"to_hit": 3,
+		"level": 11,
+		"diff": 4,
+		"speed": 35,
+		"base_damage": "1d6",
+		"blindsight_range": 12,
+		"acid_strength": 14,
+		"attack_msg": "<monster> hits <target> with its pseudopod",
+		"flags": [ "ACID_RESISTANT" ]
 	}
 ]

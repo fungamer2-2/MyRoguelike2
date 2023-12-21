@@ -164,6 +164,7 @@ class MonsterType(JSONObject):
 		
 		obj.load_optional(d, "blindsight_range", 0, int)
 		obj.load_optional(d, "poison", False, (bool, dict))
+		obj.load_optional(d, "acid_strength", 0, int)
 		obj.load_optional(d, "weapon", None)
 		
 		if obj.poison != False:
@@ -201,6 +202,21 @@ class WeaponType(JSONObject):
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		
 		return obj
+		
+class ArmorType(JSONObject):
+		
+	@classmethod
+	def load(cls, d):
+		obj = cls()
+		obj.load_required(d, "id", str)
+		obj.load_required(d, "name", str)
+		obj.load_required(d, "symbol", str),
+		obj.load_required(d, "protection", int)
+		obj.load_optional(d, "encumbrance", 0, int)
+		obj.load_optional(d, "stealth_pen", 0, int)
+		
+		return obj
+		
 		
 def load_monster_types():
 	mon_types = {}

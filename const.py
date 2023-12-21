@@ -25,4 +25,10 @@ MSG_TYPES = {
 	"input": COLOR_CYAN
 }
 
+from enum import Enum
+
+class ItemUseResult:
+	NOT_USED = 0 #Item was not used
+	USED = 1 #Item was used, but should not be consumed
+	CONSUMED = 2 #Item was used, and should be consumed
 
