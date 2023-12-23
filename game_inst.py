@@ -184,6 +184,7 @@ class Game:
 				self.load()
 				return True
 			else:
+				self.delete_saved_game()
 				return False
 		
 	def check_saved_game(self):
