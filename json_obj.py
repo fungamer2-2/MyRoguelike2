@@ -217,42 +217,31 @@ class ArmorType(JSONObject):
 		
 		return obj
 		
-		
-def load_monster_types():
-	mon_types = {}
-	f = open("monsters.json", "r")
+def load_types(filename, field_name, typ_obj):
+	types = {}
+	f = open(filename, "r")
 	data = json.load(f)
-	for mon in data:
-		mon_id = mon["id"]
-		if mon_id in mon_types:
-			raise ValueError(f"duplicate monster id {mon_id!r}")
-		typ = MonsterType.load(mon)
-		mon_types[mon_id] = typ
-	return mon_types
+	for obj in data:
+		unique = obj[field_name]
+		if unique in types:
+			raise ValueError(f"duplicate {field_name} value {unique!r} in {filename}")
+		typ = typ_obj.load(obj)
+		types[unique] = typ
+		
+	return types
+	
+def load_monster_types():
+	return load_types("monsters.json", "id", MonsterType)
 	
 def load_weapon_types():
-	weap_types = {}
-	f = open("weapons.json", "r")
-	data = json.load(f)
-	for weap in data:
-		weap_id = weap["id"]
-		if weap_id in weap_types:
-			raise ValueError(f"duplicate weapon id {weap_id!r}")
-		typ = WeaponType.load(weap)
-		weap_types[weap_id] = typ
-	return weap_types
+	return load_types("weapons.json", "id", WeaponType)
 	
 def load_effect_types():
-	eff_types = {}
-	f = open("effects.json", "r")
-	data = json.load(f)
-	for effect in data:
-		name = effect["name"]
-		if name in eff_types:
-			raise ValueError(f"duplicate effect name {name!r}")
-		typ = EffectType.load(effect)
-		eff_types[name] = typ
-	return eff_types
+	return load_types("effects.json", "name", EffectType)
+	
+def load_armor_types():
+	return load_types("armor.json", "id", ArmorType)
+	
 	
 	
 

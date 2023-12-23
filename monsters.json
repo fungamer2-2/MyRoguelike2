@@ -166,7 +166,7 @@
 		"speed": 100,
 		"base_damage": "1d4",
 		"attack_msg": "<monster> bites <target>",
-		"poison": { "potency": 15, "max_damage": 21 },
+		"poison": { "potency": 13, "max_damage": 21 },
 		"blindsight_range": 2,
 		"flags": [ "SEES" ],
 		"reach": 2

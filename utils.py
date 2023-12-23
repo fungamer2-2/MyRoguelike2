@@ -1,6 +1,6 @@
 import random, math
-
 from random import randint as rng
+from itertools import accumulate
 
 def gen_stats():
 	points = 27
@@ -22,12 +22,13 @@ def gen_stats():
 		stats[ind] += 1
 		points -= cost
 		
-		if stats[ind] >= 15 or random.randint(1, 2) == 1:
+		if (stats[ind] >= 15 or (stats[ind] >= 13 and one_in(2))) or x_in_y(3, 5):
 			ind = -1
 			
 	return stats
 	
 def triangular_roll(a, b):
+	#Returns a rand integer between a and b inclusive, biased towards the average result
 	range = b - a
 	r1 = range//2
 	r2 = (range+1)//2
@@ -98,6 +99,32 @@ def display_bar(val, max, width):
 def apply_armor(damage, armor):
 	prot = rng(0, armor) + rng(0, armor)
 	return max(damage - prot, 0)
+	
+class WeightedList:
+	
+	def __init__(self):
+		self.choices = []
+		self.weights = []
+		self.cumulative_weights = None
+		
+	def add(self, value, weight):
+		if weight > 0:
+			self.choices.append(value)
+			self.weights.append(weight)
+			self.cumulative_weights = None 
+	
+	def clear(self):
+		self.choices.clear()
+		self.weights.clear()
+		self.cumulative_weights = None 
+		
+	def pick(self):
+		if len(self.choices) == 0:
+			raise IndexError("cannot pick from an empty weighted list")
+		if not self.cumulative_weights:
+			self.cumulative_weights = list(accumulate(self.weights))
+		return random.choices(self.choices, cum_weights=self.cumulative_weights)[0]
+
 	
 class Dice:
 		

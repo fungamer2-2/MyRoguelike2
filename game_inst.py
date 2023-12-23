@@ -14,6 +14,13 @@ from utils import *
 	
 import curses, textwrap, math
 
+def _check_type(typ, types, type_name):
+	if typ not in types:
+		valid_types = sorted(types.keys())
+		error = ValueError(f"invalid {type_name} type {typ!r}")
+		error.add_note(f"Valid {type_name} types are: {', '.join(valid_types)}")
+		raise error
+
 class Game:
 	
 	def __init__(self):
@@ -26,6 +33,7 @@ class Game:
 		self.mon_types = {}
 		self.eff_types = {}
 		self.weap_types = {}
+		self.armor_types = {}
 		self.level = 1
 		self.subtick_timer = 0
 		self.tick = 0
@@ -45,26 +53,17 @@ class Game:
 		self.select_mon = None
 		
 	def check_mon_type(self, typ):
-		if typ not in self.mon_types:
-			valid_types = sorted(self.mon_types.keys())
-			error = ValueError(f"invalid monster type {typ!r}")
-			error.add_note(f"Valid monster types are: {', '.join(valid_types)}")
-			raise error
+		_check_type(typ, self.mon_types, "monster")
 			
 	def check_effect_type(self, name):
-		if name not in self.eff_types:
-			valid_types = sorted(self.eff_types.keys())
-			error = ValueError(f"invalid effect name {name!r}")
-			error.add_note(f"Valid effect names are: {', '.join(valid_types)}")
-			raise error
+		_check_type(name, self.eff_types, "effect")
 			
 	def check_weapon_type(self, typ):
-		if typ not in self.weap_types:
-			valid_types = sorted(self.weap_types.keys())
-			error = ValueError(f"invalid weapon type {typ!r}")
-			error.add_note(f"Valid weapon types are: {', '.join(valid_types)}")
-			raise error
+		_check_type(typ, self.weap_types, "weapon")
 	
+	def check_armor_type(self, typ):
+		_check_type(typ, self.armor_types, "armor")
+		
 	def load_monsters(self):
 		self.mon_types = load_monster_types()
 	
@@ -72,7 +71,10 @@ class Game:
 		self.eff_types = load_effect_types()
 		
 	def load_weapons(self):
-		self.weap_types = load_weapon_types()	
+		self.weap_types = load_weapon_types()
+		
+	def load_armors(self):
+		self.armor_types = load_armor_types()	
 	
 	def get_mon_type(self, typ):
 		self.check_mon_type(typ)
@@ -82,13 +84,18 @@ class Game:
 		self.check_weapon_type(typ)
 		return self.weap_types[typ]
 		
-	def get_all_monster_types(self):
-		for typ in self.mon_types.values():
-			yield typ
+	def get_armor_type(self, typ):
+		self.check_armor_type(typ)
+		return self.armor_types[typ]
 		
 	def get_effect_type(self, name):
 		self.check_effect_type(name)
 		return self.eff_types[name]
+		
+	def get_all_monster_types(self):
+		for typ in self.mon_types.values():
+			yield typ
+		
 		
 	def add_message(self, text, typ="neutral"):
 		self.msg_log.add_message(text, typ)
@@ -102,14 +109,17 @@ class Game:
 			curses.init_pair(i + 1, i + 1, -1)
 		
 	def init_game(self):
-		self.screen = curses.initscr()
+		screen = curses.initscr()
+		self.screen = screen	
 		self.init_colors()
 		
 		curses.noecho()
 		curses.curs_set(False)
 		Entity.g = self
-		self.load_json_data()
+		screen.addstr("Loading roguelike game, please wait...")
+		screen.refresh()
 		
+		self.load_json_data()
 		self.init_player()	
 		self.generate_level()		
 		self.draw_board()
@@ -118,6 +128,7 @@ class Game:
 		self.load_monsters()
 		self.load_effects()
 		self.load_weapons()
+		self.load_armors()
 		
 	def next_level(self):
 		player = self.get_player()
@@ -160,6 +171,11 @@ class Game:
 	def create_weapon(self, id):
 		typ = self.get_weapon_type(id)
 		return Weapon.from_type(typ)
+		
+	def create_armor(self, id):
+		typ = self.get_armor_type(id)
+		return Armor.from_type(typ)
+	
 	
 	def place_items(self):
 		board = self.get_board()
@@ -188,19 +204,36 @@ class Game:
 		]
 		
 		for _ in range(rng(1, 4)):
-			if x_in_y(3, 8):
+			if one_in(2):
 				pos = board.random_passable()
 				name = random_weighted(weapons)
 				board.place_item_at(pos, self.create_weapon(name))
+				
+		armors = [
+			["leather", 100],
+			["hide", 50],
+			["scale_mail", 30]
+		]
+		
+		for _ in range(rng(2, 4)):
+			if one_in(2):
+				pos = board.random_passable()
+				name = random_weighted(armors)
+				board.place_item_at(pos, self.create_armor(name))
+				
 			
 	def place_monsters(self):
 		eligible_types = {}
 		highest = 0
-		levels = []
+		
+		levels = WeightedList()
 		for typ in self.get_all_monster_types():
 			if self.level >= typ.level:
+				w = 3
+				if typ.level > 1:
+					w = min(w, self.level - typ.level + 1)
 				if typ.level not in eligible_types:
-					levels.append(typ.level)
+					levels.add(typ.level, w)
 					eligible_types[typ.level] = []
 				eligible_types[typ.level].append(typ)
 				
@@ -211,13 +244,13 @@ class Game:
 		
 		packs = 0
 		while num_monsters > 0:
-			typ = random.choice(eligible_types[random.choice(levels)])
+			typ = random.choice(eligible_types[levels.pick()])
 			min_level = typ.level
-			pack_spawn_chance = self.level - min_level + 1
-			if "PACK_TRAVEL" in typ.flags and x_in_y(pack_spawn_chance, pack_spawn_chance + 3) and one_in(6 + packs * 3):
+			pack_spawn_chance = self.level - min_level
+			if "PACK_TRAVEL" in typ.flags and x_in_y(pack_spawn_chance, pack_spawn_chance + 4) and one_in(6 + packs * 3):
 				pack_num = rng(2, 4)
 				if self.spawn_pack(typ.id, pack_num):
-					num_monsters -= rng(1, pack_num)
+					num_monsters -= pack_num
 					packs += 1	
 			else:
 				num_monsters -= 1
@@ -420,9 +453,10 @@ class Game:
 			
 	def getch(self, wait=True):
 		screen = self.screen
-		if wait != self.delay:
-			self.delay = wait
-			screen.nodelay(not wait)
+		
+		screen.nodelay(not wait)
+		if wait:
+			curses.flushinp()
 		code = screen.getch()
 		return code
 	
@@ -463,7 +497,7 @@ class Game:
 			elif seen and tile.items:
 				item = tile.items[-1]
 				symbol = item.symbol
-				color = curses.color_pair(item.display_color())	
+				color = item.display_color()
 			elif tile.stair:
 				symbol = STAIR_SYMBOL
 			else:
@@ -517,16 +551,21 @@ class Game:
 		
 		ev_str = f"+{ev}" if ev >= 0 else str(ev)
 		
-		stealth_str = f"+{stealth}" if stealth >= 0 else str(ev)
+		stealth_str = f"+{stealth}" if stealth >= 0 else str(stealth)
 		
 		wield_str = player.weapon.name
 		dmg_str = str(player.weapon.damage)
+		
+		armor_str = player.armor.name if player.armor else ""
+		prot_str = f"Protection: {player.get_armor()}"
 		strings2 = [
 			f"Stealth: {stealth_str}",
 			f"Evasion: {ev_str}",
-			"",
+			" ",
 			f"Wield: {wield_str}",
-			f"Damage: {dmg_str}"
+			f"Damage: {dmg_str}",
+			armor_str,
+			prot_str
 		]
 		
 		for i, string in enumerate(strings2):
@@ -624,7 +663,7 @@ class Game:
 		result = screen.getstr()
 		curses.curs_set(False)
 		curses.noecho()
-		return result.decode()
+		return result.decode().rstrip()
 		
 	def input_int(self, msg=""):
 		while True:
@@ -634,7 +673,15 @@ class Game:
 			except ValueError:
 				self.add_message("Integers only, please.", "input")
 	
-	def process_input(self):
+	def confirm(self, question):
+		while True:
+			txt = self.input_text(question + " (Y/N)")
+			if txt in ["Y", "N"]:
+				return txt == "Y"
+			else:
+				self.add_message("Please enter an uppercase Y or N.", "input")		
+	
+	def process_input(self):	
 		self.maybe_refresh()
 				
 		player = self.get_player()
@@ -651,7 +698,13 @@ class Game:
 		if player.has_status("Paralyzed"):
 			player.use_energy(100)
 			return True
+			
+		player.handle_activities()
+		if player.activity:
+			player.use_energy(100)
+			return True
 		
+		self.draw_board()
 		code = self.getch()
 		char = chr(code)
 		if code == -1:
@@ -669,10 +722,10 @@ class Game:
 		elif char == ">":
 			return player.descend()
 		elif char == "r":
-			if player.HP < player.MAX_HP:
+			if player.can_rest():
 				self.add_message("You begin resting.")
 				player.is_resting = True
-				return True
+			return True
 		elif char == "v":
 			return self.view_monsters()
 		elif char == "p":

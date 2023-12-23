@@ -2,6 +2,8 @@ from entity import Entity
 from utils import *
 from const import *
 from items import UNARMED
+from collections import deque
+import math
 
 class Player(Entity):
 	
@@ -24,7 +26,16 @@ class Player(Entity):
 		self.debug_wizard = False
 		self.weapon = UNARMED
 		self.armor = None
+		self.activity_queue = deque()
+		self.activity = None
 		self.inventory = []
+		
+	def encumb_ev_mult(self):
+		enc = self.get_encumbrance()
+		return math.exp(-enc * enc / 70)
+			
+	def get_encumbrance(self):
+		return self.armor.encumbrance if self.armor else 0
 		
 	def is_unarmed(self):
 		return self.weapon is UNARMED
@@ -40,6 +51,9 @@ class Player(Entity):
 				bonus *= 0.7
 			elif self.has_status("Reduced"):
 				bonus *= 1.3
+				
+			bonus *= self.encumb_ev_mult() 
+			
 		return bonus + 5
 		
 	def add_to_inventory(self, item):
@@ -48,9 +62,31 @@ class Player(Entity):
 	def remove_from_inventory(self, item):
 		if item in self.inventory:
 			self.inventory.remove(item)
+			
+	def handle_activities(self):
+		activity = self.activity
+		if activity:	
+			activity.duration -= 1
+			if activity.duration <= 0:
+				self.add_msg(f"You finish {activity.name}.")
+				activity.on_finished(self)
+				self.activity = None
 		
-	def interrupt(self):
-		self.is_resting = False
+		if self.activity_queue and not activity:
+			new_act = self.activity_queue.popleft()
+			self.add_msg(f"You begin {new_act.name}.")
+			self.activity = new_act
+			
+	def queue_activity(self, activity):
+		self.activity_queue.append(activity)
+		
+	def interrupt(self):	
+		if self.is_resting:
+			self.is_resting = False
+		
+		if self.activity: #TODO: Add confirmation before cancelling
+			self.activity = None
+			self.activity_queue.clear()
 		
 	def use_energy(self, amount):
 		super().use_energy(amount)
@@ -58,6 +94,12 @@ class Player(Entity):
 		
 	def is_player(self):
 		return True
+		
+	def equip_armor(self, armor):
+		self.armor = armor
+		
+	def unequip_armor(self):
+		self.armor = None
 		
 	def xp_to_next_level(self):
 		amount = 100 * self.xp_level ** 1.5
@@ -111,6 +153,22 @@ class Player(Entity):
 		g = self.g
 		board = g.get_board()
 		self.fov = board.get_fov(self.pos)
+		
+	def can_rest(self):
+		if self.HP >= self.MAX_HP:
+			return False
+		num_visible = 0
+		for mon in self.visible_monsters():
+			num_visible += 1
+			
+		if num_visible > 0:
+			if num_visible == 1:
+				self.add_msg("There's a monster nearby!", "warning")
+			else:
+				self.add_msg("There are monsters nearby!", "warning")
+			return False
+			
+		return True
 		
 	def sees_pos(self, other):
 		return other in self.fov
@@ -331,6 +389,7 @@ class Player(Entity):
 		att_roll = self.roll_to_hit(mon)
 		
 		if att_roll >= 0:
+			mon.on_hit(self)
 			stat = self.STR
 			if finesse:
 				stat = max(stat, self.DEX)	
@@ -351,7 +410,8 @@ class Player(Entity):
 				]
 				self.add_msg(random.choice(msg))
 				max_bonus = 3 + mult_rand_frac(eff_level, 3, 2)
-				damage += dice(1, 2 + eff_level * 2)
+				damage = mult_rand_frac(damage, 6 + rng(0, eff_level - 1), 6)
+				damage += rng(0, max_bonus)
 				
 				mon.use_energy(triangular_roll(0, 100))
 				
@@ -498,6 +558,10 @@ class Player(Entity):
 			stealth += 3
 		elif self.has_status("Enlarged"):
 			stealth -= 3
+		
+		armor = self.armor	
+		if armor:
+			stealth -= armor.stealth_pen
 			
 		return stealth		
 				

@@ -355,8 +355,11 @@ class Monster(Entity):
 		x = 0
 		y = 0
 		num = 0
+		player = g.get_player()
 		
-		return False
+		#TODO: When friendly monsters are possible (through scrolls), allow it to consider anyone it's targeting, not just the player
+		target_u = self.sees(player) and self.state == "AWARE"
+		
 		#Each member of the pack tries to move toward the average of its nearby members
 		for mon in g.monsters_in_radius(self.pos, 5):
 			if self is mon:
@@ -377,7 +380,9 @@ class Monster(Entity):
 			x /= num
 			y /= num
 			target = Point(round(x), round(y))
-			if self.target_pos != target:
+			dist_to_ent = self.distance(player)
+			targ_dist_to_ent = target.distance(player.pos)
+			if not target_u or targ_dist_to_ent < dist_to_ent:
 				self.set_target(target)
 				return True
 		return False
@@ -412,7 +417,7 @@ class Monster(Entity):
 						mon.target_entity(player)
 			self.set_state("AWARE")
 		
-		self.target_entity(player)
+			self.target_entity(player)
 				
 	def move_dir(self, dx, dy):
 		if super().move_dir(dx, dy):
@@ -587,31 +592,51 @@ class Monster(Entity):
 		
 	def perception_roll(self):
 		return self.roll_wisdom() + self.get_skill("perception")
+	
+	def on_hit(self, ent):
+		g = self.g
 		
+		if self.has_flag("PACK_TRAVEL"):
+			for mon in g.monsters_in_radius(self.pos, rng(8, 16)):
+				if self is mon:
+					continue
+				if not self.is_ally(mon):
+					continue
+				
+				if not one_in(3):
+					self.set_state("AWARE")
+						
+	
 	def move(self):
 		g = self.g
 		board = g.get_board()
-		player = g.get_player()
+		player = g.get_player()	
+		
+		reached_target = self.target_pos == self.pos
+		is_targeting_u = self.has_target() and self.target_pos == player.pos
+		
+		if reached_target:
+			self.clear_target()
 		
 		match self.state:
 			case "IDLE":
 				self.idle()				
 			case "AWARE":	
 				if self.sees(player):
-					self.target_entity(player)
+					if not (self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos()):
+						self.target_entity(player)
+						
 					if self.id == "bat" and one_in(5):
 						self.set_rand_target()
 				elif self.sees_pos(player.pos): 
-					#Target is in LOS, but invisible	
-					reached_target = self.target_pos == self.pos
+					#Target is in LOS, but invisible
 					perceived_invis = self.determine_invis(player)
 					
-					if self.target_pos != player.pos and reached_target:
+					if not is_targeting_u and reached_target:
 						if perceived_invis:	
 							self.target_entity(player)
 						else:
-							self.random_guess_invis()
-								
+							self.random_guess_invis()				
 				else:
 					self.set_state("TRACKING")
 					self.target_entity(player)
@@ -629,7 +654,8 @@ class Monster(Entity):
 					#Once we reach the target, make a perception check contested by the player's stealth check to determine the new location
 					if self.perception_roll() >= player.stealth_roll():
 						self.set_target(player.pos)
-						self.patience += rng(0, 3)
+					elif self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos():
+						self.patience += rng(0, 1)
 					else:
 						#If we fail, idle around for a few turns instead
 						self.pursue_check = rng(1, 4)

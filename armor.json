@@ -1,0 +1,31 @@
+[
+	{
+		"id": "leather",
+		"name": "leather armor",
+		"symbol": "l",
+		"protection": 1
+	},
+	{
+		"id": "hide",
+		"name": "hide armor",
+		"symbol": "h",
+		"protection": 2,
+		"encumbrance": 1
+	},
+	{
+		"id": "scale_mail",
+		"name": "scale mail",
+		"symbol": "M",
+		"protection": 4,
+		"encumbrance": 7,
+		"stealth_pen": 2
+	},
+	{
+		"id": "half_plate",
+		"name": "half-plate armor",
+		"symbol": "H",
+		"protection": 5,
+		"encumbrance": 6,
+		"stealth_pen": 2
+	}
+]

@@ -1,5 +1,6 @@
 from utils import *
 from const import *
+from activity import *
 from json_obj import WeaponType
 import curses
 
@@ -24,7 +25,7 @@ class Potion(Item):
 		self.symbol = "p"
 		
 	def display_color(self):
-		return COLOR_DEEP_PINK2
+		return curses.color_pair(COLOR_DEEP_PINK2)
 		
 
 class HealingPotion(Potion): 
@@ -71,7 +72,7 @@ class ShrinkingPotion(Potion):
 		self.name = "shrinking potion"
 		
 	def display_color(self):
-		return COLOR_CYAN
+		return curses.color_pair(COLOR_CYAN)
 		
 	def use(self, player):
 		player.add_msg("You drink the shrinking potion.")
@@ -95,7 +96,7 @@ class SpeedPotion(Potion):
 		self.name = "speed potion"
 		
 	def display_color(self):
-		return COLOR_BLUE
+		return curses.color_pair(COLOR_BLUE)
 			
 	def use(self, player):
 		player.add_msg("You drink the speed potion.")
@@ -115,7 +116,7 @@ class InvisibilityPotion(Potion):
 		self.name = "invisibility potion"
 		
 	def display_color(self):
-		return COLOR_BLUE
+		return curses.color_pair(COLOR_BLUE)
 			
 	def use(self, player):
 		player.add_msg("You drink the invisibility potion.")
@@ -137,13 +138,13 @@ class Weapon(Item):
 		self.damage = Dice(0, 0, 1)
 		self.dmg_type = "bludgeon"
 		self.finesse = False
-		self.heavy = False
+		self.heavy = False 
 		
 	def roll_damage(self):
 		return self.damage.roll()
 		
 	def display_color(self):
-		return COLOR_SILVER
+		return curses.color_pair(COLOR_DODGER_BLUE2) | curses.A_REVERSE
 		
 	@classmethod
 	def from_type(cls, typ):
@@ -180,8 +181,28 @@ class Armor(Item):
 	
 	def __init__(self):
 		super().__init__()
+		self.type = None
 		self.name = "armor"
 		self.protection = 1
 		self.stealth_pen = 0
 		self.encumbrance = 0
+		
+	def display_color(self):
+		return curses.color_pair(COLOR_BLUE) | curses.A_REVERSE
+		
+	@classmethod
+	def from_type(cls, typ):
+		obj = cls()
+		obj.type = typ
+		obj.name = typ.name
+		obj.symbol = typ.symbol
+		obj.protection = typ.protection
+		obj.stealth_pen = typ.stealth_pen
+		obj.encumbrance = typ.encumbrance
+		
+		return obj
+		
+	def use(self, player):
+		dur = triangular_roll(20, 40)
+		player.queue_activity(EquipArmorActivity(self, dur))
 		
