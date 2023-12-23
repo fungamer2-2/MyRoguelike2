@@ -108,6 +108,10 @@ class Entity(ABC):
 	def base_damage_roll(self):
 		return 1
 		
+	@abstractmethod
+	def on_hear_noise(self, noise):
+		pass
+		
 	def add_msg(self, text, typ="neutral"):
 		g = self.g
 		g.add_message(text, typ)

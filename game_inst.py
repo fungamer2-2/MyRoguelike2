@@ -6,13 +6,13 @@ from board import Board
 from entity import Entity
 from monster import Monster
 from player import Player
-
+from threading import Thread
 
 from messages import MessageLog
 from noise_event import NoiseEvent
 from utils import *
 	
-import curses, textwrap, math
+import curses, textwrap, math, pickle, time
 
 def _check_type(typ, types, type_name):
 	if typ not in types:
@@ -22,6 +22,14 @@ def _check_type(typ, types, type_name):
 		raise error
 
 class Game:
+	_INST = None
+	
+	def __new__(cls):
+		if cls._INST:
+			return cls._INST
+		obj = object.__new__(cls)
+		cls._INST = obj
+		return obj
 	
 	def __init__(self):
 		self._board = Board(50, 18)
@@ -41,6 +49,41 @@ class Game:
 		self.noise_events = []
 		self.revealed = set()
 		self.delay = False
+		self.last_save_turn = -999
+		self.last_save_time = time.time()
+		
+	def __getstate__(self):
+		d = self.__dict__.copy()
+		for field in ["screen", "mon_types", "eff_types", "weap_types", "armor_types"]:
+			del d[field]
+		return d
+	
+	def __setstate__(self, state):
+		self.__dict__.update(state)
+		
+	def autosave(self):
+		time_diff = time.time() - self.last_save_time
+		if time_diff >= 2:
+			self.last_save_time = time.time()
+			t = Thread(target=self.save)
+			t.start()
+		
+	def save(self):
+		self.last_save_time = time.time()
+		pickle.dump(self, open(SAVED_GAME_PATH, "wb"))
+		
+	def load(self):
+		obj = pickle.load(open(SAVED_GAME_PATH, "rb"))
+		self.__dict__.update(obj.__dict__)
+	
+	def has_saved_game(self):
+		import os
+		return os.path.exists(SAVED_GAME_PATH)
+		
+	def delete_saved_game(self):
+		if self.has_saved_game():
+			import os
+			os.remove(SAVED_GAME_PATH)
 		
 	def add_noise_event(self, pos, loudness, src=None):
 		if loudness > 0:
@@ -116,13 +159,38 @@ class Game:
 		curses.noecho()
 		curses.curs_set(False)
 		Entity.g = self
-		screen.addstr("Loading roguelike game, please wait...")
+		screen.addstr("Loading game, please wait...")
 		screen.refresh()
 		
 		self.load_json_data()
-		self.init_player()	
-		self.generate_level()		
-		self.draw_board()
+		
+		if not self.check_saved_game():
+			self.init_player()	
+			self.generate_level()
+		
+		
+		
+	def confirm_load_save(self):
+		screen = self.screen
+		screen.erase()
+		screen.addstr(0, 0, "Continue Saved Game")
+		
+		screen.addstr(2, 0, "You have a saved game in progress. Would you like to load the saved game?")
+		screen.addstr(3, 0, "(Press Y to load game, or N to start a new one)")
+		screen.refresh()
+		while True:
+			char = chr(self.getch())
+			if char.lower() == "y":
+				self.load()
+				return True
+			else:
+				return False
+		
+	def check_saved_game(self):
+		if self.has_saved_game():
+			return self.confirm_load_save()
+		else:
+			return False
 		
 	def load_json_data(self):
 		self.load_monsters()
@@ -139,7 +207,8 @@ class Game:
 			self.level = self.input_int("As the wizard of debugging, you choose which level to go to. Which level number would you like to teleport to?")
 		
 		self.generate_level()
-		self.refresh_mon_pos_cache()		
+		self.refresh_mon_pos_cache()
+		self.save()		
 		self.draw_board()
 		
 	def generate_level(self):
@@ -200,6 +269,7 @@ class Game:
 			["greatclub", 25],
 			["handaxe", 60],
 			["battleaxe", 30],
+			["scimitar", 25],
 			["greatsword", 20]
 		]
 		
@@ -211,8 +281,9 @@ class Game:
 				
 		armors = [
 			["leather", 100],
-			["hide", 50],
-			["scale_mail", 30]
+			["hide", 100],
+			["chain_shirt", 45],
+			["scale_mail", 45]
 		]
 		
 		for _ in range(rng(2, 4)):
@@ -248,7 +319,7 @@ class Game:
 			min_level = typ.level
 			pack_spawn_chance = self.level - min_level
 			if "PACK_TRAVEL" in typ.flags and x_in_y(pack_spawn_chance, pack_spawn_chance + 4) and one_in(6 + packs * 3):
-				pack_num = rng(2, 4)
+				pack_num = rng(3, 5)
 				if self.spawn_pack(typ.id, pack_num):
 					num_monsters -= pack_num
 					packs += 1	
@@ -266,12 +337,12 @@ class Game:
 			return False
 		
 		candidates = []
-		for p in board.points_in_radius(pos, 4):
+		for p in board.points_in_radius(pos, 6):
 			if not board.passable(p):
 				continue
 			if self.entity_at(p):
 				continue	
-			if board.has_line_of_sight(p, pos):
+			if one_in(2) or board.has_line_of_sight(p, pos):
 				candidates.append(p)
 		if not candidates:
 			return False
@@ -370,7 +441,8 @@ class Game:
 			for m in self.monsters:
 				if not (noise.src and noise.src is m):
 					m.on_hear_noise(noise)
-				
+			player = self.get_player()
+			player.on_hear_noise(noise)	
 		self.noise_events.clear()
 			
 	def do_turn(self):
@@ -381,10 +453,11 @@ class Game:
 		if used <= 0:
 			return
 			
+		self.autosave()	
+		
 		while player.energy_used > 0:
 			amount = min(player.energy_used, 100)		
 			player.do_turn(amount)
-		
 		
 		self.subtick_timer += used
 		player.energy += used
@@ -399,7 +472,8 @@ class Game:
 			for m in self.monsters:
 				if m.is_alive():
 					m.tick()
-			
+					
+		
 		remaining = self.monsters.copy()
 		random.shuffle(remaining)
 		remaining.sort(key=lambda m: m.energy, reverse=True)
@@ -691,6 +765,7 @@ class Game:
 			if player.HP >= player.MAX_HP:
 				self.add_message("HP restored.", "good")
 				player.is_resting = False
+				self.save()
 			else:
 				player.use_energy(100)
 			return True
@@ -707,10 +782,7 @@ class Game:
 		self.draw_board()
 		code = self.getch()
 		char = chr(code)
-		if code == -1:
-			curses.flushinp()
-			return False
-				
+		
 		if char == "w":
 			return player.move_dir(0, -1)
 		if char == "s":
@@ -735,7 +807,7 @@ class Game:
 		elif char == " ":
 			player.use_energy(100)
 			return True
-		
+			
 		return False
 		
 	def select_monster_menu(self, monsters, check_fov=True):
@@ -853,6 +925,7 @@ class Game:
 		gameover_win.refresh()
 		
 	def game_over(self):
+		self.delete_saved_game()
 		self.draw_board()
 		self.draw_game_over()
 		self.screen.refresh()

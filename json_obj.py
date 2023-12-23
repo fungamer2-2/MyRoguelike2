@@ -72,6 +72,12 @@ def _check_type(d, key, typ):
 
 class JSONObject:
 	
+	def __getstate__(self):
+		return self._attrs.copy()
+		
+	def __setstate__(self, state):
+		self._attrs = state
+	
 	def __init__(self):
 		self._attrs = {}
 			

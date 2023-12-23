@@ -17,6 +17,8 @@ COLOR_BLUE1 = 21
 COLOR_DODGER_BLUE2 = 27
 COLOR_DEEP_PINK2 = 167
 
+SAVED_GAME_PATH = "gamedata.pkl"
+
 MSG_TYPES = {
 	"neutral": 0,
 	"good": COLOR_GREEN,

@@ -29,6 +29,14 @@ class Player(Entity):
 		self.activity_queue = deque()
 		self.activity = None
 		self.inventory = []
+		self.noise_heard = 0
+		self.noise_last = 0
+		
+	def on_hear_noise(self, noise):
+		loudness = noise.loudness - self.distance(noise.pos)
+		if loudness <= 0:
+			return
+			
 		
 	def encumb_ev_mult(self):
 		enc = self.get_encumbrance()
@@ -64,6 +72,7 @@ class Player(Entity):
 			self.inventory.remove(item)
 			
 	def handle_activities(self):
+		g = self.g
 		activity = self.activity
 		if activity:	
 			activity.duration -= 1
@@ -71,6 +80,7 @@ class Player(Entity):
 				self.add_msg(f"You finish {activity.name}.")
 				activity.on_finished(self)
 				self.activity = None
+				g.save()
 		
 		if self.activity_queue and not activity:
 			new_act = self.activity_queue.popleft()

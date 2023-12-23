@@ -1,6 +1,8 @@
 from game_inst import Game
+import atexit
 
 g = Game()
+atexit.register(g.save)
 
 def main():
 	g.init_game()

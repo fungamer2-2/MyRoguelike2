@@ -13,12 +13,19 @@
 		"encumbrance": 1
 	},
 	{
+		"id": "chain_shirt",
+		"name": "chain shirt",
+		"symbol": "c",
+		"protection": 3,
+		"encumbrance": 2
+	},
+	{
 		"id": "scale_mail",
 		"name": "scale mail",
 		"symbol": "M",
 		"protection": 4,
 		"encumbrance": 7,
-		"stealth_pen": 2
+		"stealth_pen": 3
 	},
 	{
 		"id": "half_plate",
@@ -26,6 +33,6 @@
 		"symbol": "H",
 		"protection": 5,
 		"encumbrance": 6,
-		"stealth_pen": 2
+		"stealth_pen": 3
 	}
 ]
