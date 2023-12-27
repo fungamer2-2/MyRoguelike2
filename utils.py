@@ -204,8 +204,12 @@ class Point:
 		
 	def distance(self, other):
 		delta = other - self
-		return abs(delta.x) + abs(delta.y)	
-	
+		return abs(delta.x) + abs(delta.y)
+		
+	def circular_dist(self, other):
+		delta = other - self
+		return math.sqrt(delta.x**2 + delta.y**2)
+		
 def points_in_line(p1, p2):
 	x1 = p1.x
 	y1 = p1.y

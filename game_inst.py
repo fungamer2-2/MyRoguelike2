@@ -69,9 +69,13 @@ class Game:
 			t.start()
 		
 	def save(self):
-		self.last_save_time = time.time()
-		pickle.dump(self, open(SAVED_GAME_PATH, "wb"))
-		
+		try:
+			import copy
+			pickle.dump(self, open(SAVED_GAME_PATH, "wb"))
+			self.last_save_time = time.time()
+		except:
+			pass
+			
 	def load(self):
 		obj = pickle.load(open(SAVED_GAME_PATH, "rb"))
 		self.__dict__.update(obj.__dict__)
@@ -165,7 +169,7 @@ class Game:
 		self.load_json_data()
 		
 		if not self.check_saved_game():
-			self.init_player()	
+			self.init_player()
 			self.generate_level()
 		
 		
@@ -180,10 +184,11 @@ class Game:
 		screen.refresh()
 		while True:
 			char = chr(self.getch())
+			
 			if char.lower() == "y":
 				self.load()
 				return True
-			else:
+			elif char.lower() == "n":
 				self.delete_saved_game()
 				return False
 		
@@ -221,7 +226,7 @@ class Game:
 		board.clear_los_cache()
 		board.clear_collision_cache()
 		board.procgen_level()
-		self.init_player()
+		self.place_player()
 		self.place_monsters()
 		self.place_items()
 		
@@ -266,15 +271,15 @@ class Game:
 			
 		weapons = [
 			["club", 100],
-			["dagger", 60],
-			["greatclub", 25],
-			["handaxe", 60],
-			["battleaxe", 30],
-			["scimitar", 25],
-			["greatsword", 20]
+			["dagger", 30],
+			["greatclub", 70],
+			["handaxe", 15],
+			["battleaxe", 10],
+			["scimitar", 6],
+			["greatsword", 4]
 		]
 		
-		for _ in range(rng(1, 4)):
+		for _ in range(rng(1, 5)):
 			if one_in(2):
 				pos = board.random_passable()
 				name = random_weighted(weapons)
@@ -284,7 +289,10 @@ class Game:
 			["leather", 100],
 			["hide", 100],
 			["chain_shirt", 45],
-			["scale_mail", 45]
+			["scale_mail", 45],
+			["half_plate", 10],
+			["ring_mail", 27],
+			["chain_mail", 18]
 		]
 		
 		for _ in range(rng(2, 4)):
@@ -293,10 +301,27 @@ class Game:
 				name = random_weighted(armors)
 				board.place_item_at(pos, self.create_armor(name))
 				
-			
+		scrolls = [
+			[TeleportScroll, 20],
+			[FogScroll, 20],
+			[ThunderScroll, 20]
+		]
+		
+		for _ in range(rng(1, 3)):
+			if one_in(5):
+				pos = board.random_passable()	
+				typ = random_weighted(scrolls)
+				board.place_item_at(pos, typ())
+				
+		if one_in(5):
+			pos = board.random_passable()
+			board.place_item_at(pos, Shield())
+		
 	def place_monsters(self):
 		eligible_types = {}
 		highest = 0
+		
+		special = not x_in_y(8, self.level) and one_in(6)
 		
 		levels = WeightedList()
 		for typ in self.get_all_monster_types():
@@ -373,7 +398,6 @@ class Game:
 	def init_player(self):
 		player = self.get_player()	
 		self.place_player()
-		
 		player.recalc_max_hp()
 		
 	def place_player(self):
@@ -451,11 +475,14 @@ class Game:
 		player = self.get_player()
 		used = player.energy_used
 		
+		
 		if used <= 0:
 			return
 			
-		self.autosave()	
+		self.autosave()
 		
+		board.tick_fields(used)	
+			
 		while player.energy_used > 0:
 			amount = min(player.energy_used, 100)		
 			player.do_turn(amount)
@@ -470,6 +497,7 @@ class Game:
 		while self.subtick_timer >= 100:
 			self.subtick_timer -= 100
 			self.tick += 1
+			player.tick()
 			for m in self.monsters:
 				if m.is_alive():
 					m.tick()
@@ -569,6 +597,10 @@ class Game:
 				
 			if tile.wall:
 				symbol = WALL_SYMBOL
+			elif seen and board.field_at(pos):
+				symbol = "8"
+				color = curses.color_pair(COLOR_SILVER) | curses.A_REVERSE
+				
 			elif seen and tile.items:
 				item = tile.items[-1]
 				symbol = item.symbol
@@ -592,7 +624,7 @@ class Game:
 		p = f"({player.HP}/{player.MAX_HP})"
 		bar += " " + p
 		
-		if player.HP <= player.MAX_HP // 5:
+		if player.HP <= player.MAX_HP // 4:
 			color = COLOR_RED
 		elif player.HP <= player.MAX_HP // 2:
 			color = COLOR_YELLOW
@@ -636,11 +668,11 @@ class Game:
 		strings2 = [
 			f"Stealth: {stealth_str}",
 			f"Evasion: {ev_str}",
-			" ",
 			f"Wield: {wield_str}",
 			f"Damage: {dmg_str}",
 			armor_str,
-			prot_str
+			prot_str,
+			"Using Shield" if player.shield else ""
 		]
 		
 		for i, string in enumerate(strings2):
@@ -711,6 +743,13 @@ class Game:
 		screen = self.screen
 		screen.erase()
 		offset_y = 2
+		
+		board = self.get_board()
+		player = self.get_player()
+		
+		if board.recalc_sight:
+			player.calc_fov()
+			board.recalc_sight = False
 		
 		self.reveal_seen_tiles()
 		self.draw_walls(offset_y)
@@ -808,7 +847,11 @@ class Game:
 		elif char == " ":
 			player.use_energy(100)
 			return True
-			
+		elif char == "Q":
+			if self.confirm("Are you sure to want to close the game? (Your game will be saved so you can come back to it later.)"):
+				self.save()
+				self.deinit_window()
+				exit()
 		return False
 		
 	def select_monster_menu(self, monsters, check_fov=True):
@@ -869,7 +912,10 @@ class Game:
 		if monster.state == "IDLE":
 			info.add_line("It hasn't noticed your presence yet.")
 		if monster.has_flag("PACK_TRAVEL"):
-			info.add_line("This creature travels in packs and takes advantage of its nearby allies to attack targets more easily.")
+			info.add_line("This creature may travel in packs.")
+		if monster.has_flag("PACK_TACTICS"):
+			info.add_line("This creature takes advantage of its nearby allies to attack targets more easily.")	
+		
 		blindsight = monster.type.blindsight_range
 		if blindsight > 0:
 			string = f"This creature has blindsight to a radius of {blindsight} tiles"
@@ -888,9 +934,15 @@ class Game:
 				diff_str = f"{diff*100:.1f}%"
 			info.add_line(f"This monster is about {diff_str} as fast as you.")	
 		 
+		mon_ev = monster.calc_evasion()	
+		player_ev = player.calc_evasion()
 		
-		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), monster.calc_evasion())
-		monster_to_hit = gauss_roll_prob(monster.calc_to_hit_bonus(player), player.calc_evasion())
+		#If using a shield, factor that into the calculation
+		if player.shield:
+			player_ev += SHIELD_BONUS
+		
+		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), mon_ev)
+		monster_to_hit = gauss_roll_prob(monster.calc_to_hit_bonus(player), player_ev)
 		
 		player_to_hit = player_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
 		monster_to_hit = monster_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
@@ -977,7 +1029,9 @@ class Game:
 				self.add_message(item.name + " - " + item.description, "info")
 				return None
 			elif char in "123456789":
-				select = int(char) - 1
+				value = int(char) - 1
+				if value < len(player.inventory):
+					select = value
 			
 			if key == 10:
 				return item

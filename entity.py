@@ -17,6 +17,23 @@ class Entity(ABC):
 		self.energy = 100
 		self.poison = 0
 		self.status = {}
+		self.shield = None
+		self.shield_blocks = 0
+		
+	def is_valid_move(self, oldpos, newpos):
+		diff = newpos - oldpos
+		abs_diff = abs(diff)
+		if abs_diff.x > 1 or abs_diff.y > 1:
+			return False
+		
+		if abs_diff.x == 1 and abs_diff.y == 1:
+			p1 = Point(oldpos.x + diff.x, oldpos.y)
+			p2 = Point(oldpos.x, oldpos.y + diff.y)
+			blocked = (not self.can_move_to(p1)) + (not self.can_move_to(p2))
+			if blocked >= 2:
+				return False
+				
+		return self.can_move_to(newpos)
 		
 	def roll_to_hit(self, other):
 		if x_in_y(MIN_HIT_MISS_PROB, 100):
@@ -108,7 +125,6 @@ class Entity(ABC):
 	def base_damage_roll(self):
 		return 1
 		
-	@abstractmethod
 	def on_hear_noise(self, noise):
 		pass
 		
@@ -233,11 +249,17 @@ class Entity(ABC):
 		typ = "bad" if self.is_player() else "neutral"
 		
 		severity = " terribly" if res < 0 else ""
-		self.add_msg_u_or_mons("The acid burns you{severity}!", f"{self.get_name(True)} is burned{severity} by the acid!", typ)
+		self.add_msg_u_or_mons(f"The acid burns you{severity}!", f"{self.get_name(True)} is burned{severity} by the acid!", typ)
 		self.take_damage(dam)
 		
 	def stealth_mod(self):
 		return stat_mod(self.DEX)	
 		
 	def stealth_roll(self):
-		return gauss_roll(self.stealth_mod())	
+		return gauss_roll(self.stealth_mod())
+		
+	def tick_status_effects(self, amount):
+		for name in list(self.status.keys()):
+			self.status[name] -= amount
+			if self.status[name] <= 0:
+				self.remove_status(name)	

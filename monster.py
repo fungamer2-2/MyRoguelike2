@@ -24,6 +24,8 @@ class Monster(Entity):
 		self.damage = Dice(0,0,0)
 		self.weapon = None
 		self.type = None
+		self.bat_tick = 0
+		self.energy = rng(-100, 100)
 		
 	def is_monster(self):
 		return True
@@ -162,7 +164,10 @@ class Monster(Entity):
 		duration = self.INT * loudness
 		
 		if self.state in ["IDLE", "TRACKING"]:
-			if self.soundf < duration:
+			dist_to_player = noise.pos.distance(player.pos)
+			if seen and dist_to_player < rng(1, 8):
+				self.alerted() 
+			elif self.soundf < duration:
 				self.state = "TRACKING_SOUND"
 				self.set_target(noise.pos)
 				self.soundf = duration
@@ -213,6 +218,9 @@ class Monster(Entity):
 		elif one_in(16) and not self.has_flag("NO_REGEN"):
 			self.heal(1)
 			
+		self.shield_blocks = 0
+		self.tick_status_effects(100)
+		
 	def do_turn(self):
 		assert self.energy > 0
 		if not self.can_act():
@@ -232,12 +240,17 @@ class Monster(Entity):
 		
 		blindsight_range = self.type.blindsight_range
 			
-		#Blindsight bypasses invisibility, which is intended
+		#Blindsight bypasses invisibility
 		if self.distance(other) <= blindsight_range:
 			return True
 		
-		#TODO: Invisibility check
-		return self.can_see() and not other.is_invisible()
+		g = self.g
+		board = g.get_board()
+		if self.can_see() and not other.is_invisible():
+			return not board.field_blocks_view(self.pos, other.pos)
+		else:
+			return False
+		
 		
 	def speed_mult(self):
 		mult = super().speed_mult()
@@ -264,7 +277,7 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		
-		if not one_in(4) and self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos():
+		if not one_in(5) and self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos():
 			return
 			
 		self.set_rand_target()
@@ -368,7 +381,7 @@ class Monster(Entity):
 				continue
 			if not self.is_ally(mon):
 				pass
-			if mon.state == "IDLE":
+			if mon.state == "IDLE" and self.state != "IDLE":
 				continue	
 		
 			p = mon.pos
@@ -399,7 +412,7 @@ class Monster(Entity):
 		self.use_energy(1000)
 		self.add_msg_if_u_see(self, f"{self.get_name(True)} dies!", "good")
 		board.erase_collision_cache(self.pos)
-		if self.weapon:
+		if self.weapon and one_in(3):
 			board.place_item_at(self.pos, self.weapon)
 		
 	def is_aware(self):
@@ -448,7 +461,7 @@ class Monster(Entity):
 			case "small":
 				mod += 1
 		
-		if self.has_flag("PACK_TRAVEL"):
+		if self.has_flag("PACK_TACTICS"):
 			allies = 0
 			for p in board.points_in_radius(self.pos, 1):
 				if p == self.pos:
@@ -456,11 +469,9 @@ class Monster(Entity):
 				mon = g.entity_at(p)
 				if mon and self.is_ally(mon):
 					allies += 1
-					if allies >= 2:
-						break
+					
 			if allies > 0: #Pack tactics gives a bonus to-hit if there are allies nearby
-				bonus = 2.5*allies
-				mod += bonus
+				mod += 5
 			
 		return mod + super().calc_to_hit_bonus(c)
 		
@@ -516,26 +527,31 @@ class Monster(Entity):
 		u_see_attacker = player.sees(self)
 		u_see_defender = player.sees(c)
 		print_msg = u_see_attacker or u_see_defender
-			
+		
 		if att_roll >= 0:
-			damage = self.base_damage_roll()
-			stat = self.DEX if self.type.use_dex_melee else self.STR
-			damage += div_rand(stat - 10, 2)
-			damage = max(damage, 1)
-			damage = apply_armor(damage, c.get_armor())
+			if c.shield and c.shield_blocks < 1 and att_roll < SHIELD_BONUS:
+				if c.is_player():
+					c.add_msg(f"You block {self.get_name()}'s attack.")
+				c.shield_blocks += 1
+			else:
+				damage = self.base_damage_roll()
+				stat = self.DEX if self.type.use_dex_melee else self.STR
+				damage += div_rand(stat - 10, 2)
+				damage = max(damage, 1)
+				damage = apply_armor(damage, c.get_armor())
+					
+				msg_type = "bad" if (c.is_player() and damage > 0) else "neutral"
+				if print_msg:
+					self.add_msg_if_u_see(self, self.get_hit_msg(c, damage), msg_type)
+					
+				c.take_damage(damage)
 				
-			msg_type = "bad" if (c.is_player() and damage > 0) else "neutral"
-			if print_msg:
-				self.add_msg_if_u_see(self, self.get_hit_msg(c, damage), msg_type)
-				
-			c.take_damage(damage)
-			
-			if damage > 0:
-				if self.type.poison:
-					self.inflict_poison_to(c)
-				acid = self.get_acid_strength()
-				if acid > 0:
-					c.hit_with_acid(acid)
+				if damage > 0:
+					if self.type.poison:
+						self.inflict_poison_to(c)
+					acid = self.get_acid_strength()
+					if acid > 0:
+						c.hit_with_acid(acid)
 		elif u_see_attacker:
 			defender = c.get_name() if u_see_defender else "something"
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {defender}.")
@@ -560,8 +576,11 @@ class Monster(Entity):
 			typ = "bad" if c.is_player() else "neutral"
 			dmg = rng(0, amount)
 			if dmg > 0:
-				c.add_msg_u_or_mons("You are poisoned!", f"{self.get_name(True)} is poisoned!", typ)
-				c.poison += dmg
+				if c.is_player():
+					c.do_poison(dmg)
+				else:
+					c.add_msg_if_u_see("You are poisoned!", f"{self.get_name(True)} is poisoned!", typ)
+					c.poison += dmg
 				if poison_typ.slowing and x_in_y(dmg, dmg+3):
 					paralyzed = False
 					if self.has_status("Slowed") and one_in(5):
@@ -605,7 +624,6 @@ class Monster(Entity):
 				
 				if not one_in(3):
 					self.set_state("AWARE")
-						
 	
 	def move(self):
 		g = self.g
@@ -626,7 +644,7 @@ class Monster(Entity):
 					if not (self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos()):
 						self.target_entity(player)
 						
-					if self.id == "bat" and one_in(5):
+					if self.id == "bat" and one_in(4):
 						self.set_rand_target()
 				elif self.sees_pos(player.pos): 
 					#Target is in LOS, but invisible
@@ -671,13 +689,38 @@ class Monster(Entity):
 				if self.soundf > 0:
 					self.soundf -= 1
 				
-				if self.sees(player):
+				stealth_val = 10 + player.stealth_mod()
+				if self.sees(player) and one_in(2) and self.perception_roll() >= stealth_val:
 					self.set_state("AWARE")
 					self.alerted()
 				elif self.soundf <= 0:
 					self.set_state("IDLE")
 				
 		self.move_to_target()
+		
+	def push_away_from(self, pos, distance):
+		if self.pos == pos:
+			return
+		
+		diff = self.pos - pos
+		dist = self.distance(pos)
+		
+		norm_x = diff.x / dist
+		norm_y = diff.y / dist
+		
+		delta = Point(round(norm_x * distance), round(norm_y * distance))
+		
+		target = self.pos + delta
+		
+		moved = False
+		for p in points_in_line(self.pos, target):
+			if self.is_valid_move(self.pos, p):
+				self.move_to(p)
+				moved = True
+			else:
+				break
+				
+		return moved
 		
 	def display_color(self):
 		color = 0

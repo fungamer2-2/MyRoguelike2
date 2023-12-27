@@ -15,7 +15,7 @@
 		"level": 1,
 		"diff": 1,
 		"size": "tiny",
-		"speed": 125,
+		"speed": 135,
 		"flags": [ "SEES", "KEEN_HEARING" ],
 		"attack_msg": "<monster> bites <target>",
 		"blindsight_range": 12
@@ -79,7 +79,7 @@
 		"base_damage": "1d4",
 		"attack_msg": "<monster> bites <target>",
 		"skills": { "perception": 3 },
-		"flags": [ "SEES", "PACK_TRAVEL" ]
+		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ]
 	},
 	{
 		"id": "kobold",
@@ -100,7 +100,7 @@
 		"speed": 100,
 		"weapon": "dagger",
 		"attack_msg": "<monster> hits <target> with a dagger",
-		"flags": [ "SEES", "PACK_TRAVEL" ],
+		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ],
 		"weapon": "dagger"
 	},
 	{
@@ -121,7 +121,7 @@
 		"size": "small",
 		"speed": 100,
 		"base_damage": "1d4",
-		"flags": [ "SEES", "PACK_TRAVEL" ],
+		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ],
 		"attack_msg": "<monster> bites <target>"
 	},
 	{
@@ -160,7 +160,7 @@
 		"CHA": 3,
 		"HP": 11,
 		"to_hit": 6,
-		"level": 8,
+		"level": 9,
 		"diff": 3,
 		"use_dex_melee": true,
 		"speed": 100,
@@ -190,7 +190,7 @@
 		"speed": 100,
 		"base_damage": "1d6",
 		"attack_msg": "<monster> hits <target> with a scimitar",
-		"flags": [ "SEES" ]
+		"flags": [ "SEES", "PACK_TRAVEL" ]
 	},
 	{
 		"id": "gray_ooze",

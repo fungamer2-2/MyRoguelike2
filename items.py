@@ -127,7 +127,89 @@ class InvisibilityPotion(Potion):
 		player.use_energy(100)		
 		player.add_status("Invisible", dur)	
 		return ItemUseResult.CONSUMED
-
+		
+class Scroll(Item):
+	description = "A scroll that contains magical writing on it."
+	
+	def display_color(self):
+		return curses.color_pair(COLOR_BLUE)
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "scroll"
+		self.symbol = "@"
+		
+	def scroll_effect(self, player):
+		pass
+		
+	def use(self, player):
+		player.add_msg(f"You read the {self.name}.")
+		self.scroll_effect(player)
+		player.add_msg("The scroll crumbles to dust.")
+		return ItemUseResult.CONSUMED
+		
+class TeleportScroll(Scroll):
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "scroll of teleportation"
+		
+	def scroll_effect(self, player):
+		player.teleport()
+		player.use_energy(200)
+		
+class FogScroll(Scroll):
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "scroll of fog"
+		
+	def scroll_effect(self, player):
+		g = player.g
+		board = g.get_board()
+		board.set_field(player.pos, 5, "dense_fog")
+		player.add_msg("A dense fog comes down and surrounds you.")
+		player.use_energy(100)
+		
+class ThunderScroll(Scroll):
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "scroll of thunder force"
+		
+	def scroll_effect(self, player):
+		g = player.g
+		board = g.get_board()
+		
+		player.add_msg("You hear a loud boom of thunder as a sonic boom spreads outwards.", "warning")
+		player.make_noise(60) #Makes a very loud noise
+		
+		monsters = []
+		for m in g.monsters_in_radius(player.pos, 10):
+			if player.sees_pos(m.pos):
+				monsters.append(m)
+				
+		random.shuffle(monsters)
+		#Sort by distance
+		monsters.sort(key=lambda m: m.distance(player))
+		
+		for m in monsters:
+			roll = gauss_roll(stat_mod(m.CON))
+			player.add_msg_if_u_see(m, f"{m.get_name(True)} is hit by the sonic wave!")
+			if roll >= 12:
+				m.take_damage(dice(1, 8))
+				if m.is_alive():
+					player.add_msg_if_u_see(m, f"{m.get_name(True)} partially absorbs the force of the shockwave.")
+			else:
+				m.take_damage(dice(2, 8))			
+				if m.is_alive() and m.push_away_from(player.pos, 2):
+					player.add_msg_if_u_see(m, f"The thunderous wave pushes {m.get_name()} away from you!")
+			
+			if not m.is_alive():
+				player.on_defeat_monster(m)
+		player.use_energy(100)
+		
+		
 class Weapon(Item):
 	description = "A weapon that can be used in combat."
 	
@@ -205,4 +287,21 @@ class Armor(Item):
 	def use(self, player):
 		dur = triangular_roll(20, 40)
 		player.queue_activity(EquipArmorActivity(self, dur))
+
+class Shield(Item):
+	description = "A shield that can potentially block attacks."
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "shield"
+		self.symbol = "4"
 		
+	def display_color(self):
+		return curses.color_pair(COLOR_DODGER_BLUE2)
+		
+	def use(self, player):
+		#TODO: Forbid using shields with two-handed weapons
+		player.add_msg("You equip a shield.")
+		player.use_energy(150)
+		player.shield = self
+		return ItemUseResult.USED

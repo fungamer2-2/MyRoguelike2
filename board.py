@@ -12,7 +12,25 @@ class Tile:
 		self.items = []
 		
 	def is_passable(self):
-		return not self.wall	
+		return not self.wall
+		
+class Field:
+	
+	def __init__(self, transparency, decay_rate):
+		self.transparency = transparency
+		self.decay_rate = decay_rate
+		
+	def copy(self):
+		return Field(self.transparency, self.decay_rate)
+		
+class DenseFog(Field):
+		
+	def __init__(self):
+		super().__init__(2, 27)
+		
+fields = {
+	"dense_fog": DenseFog
+}
 
 class Board:
 		
@@ -22,7 +40,47 @@ class Board:
 		self.clear_grid()
 		self.mon_collision_cache = [[None for i in range(width)] for j in range(height)]	
 		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
-	
+		self.field_map = {}
+		self.recalc_sight = False
+		
+	def field_at(self, pos):
+		return self.field_map.get(pos)
+		
+	def remove_field(self, pos):
+		if pos in self.field_map:
+			del self.field_map[pos]
+			self.recalc_sight = True
+		
+	def tick_fields(self, subt):
+		for pos in list(self.field_map.keys()):
+			field = self.field_map[pos]
+			if x_in_y(subt, 100):	
+				if one_in(field.decay_rate):
+					self.remove_field(pos)
+					
+		
+	def add_field(self, pos, name):
+		self.put_field(pos, fields[name]())
+		self.recalc_sight = True
+		
+	def set_field(self, pos, radius, name):
+		#Perform a flood fill out to radius. This allows it to go around corners, but not through walls
+		stack = [pos]
+		visited = set()
+		while stack:
+			p = stack.pop()
+			
+			if p not in visited:
+				visited.add(p)
+				if self.passable(p) and p.distance(pos) <= radius:
+					self.add_field(p, name)
+					stack.extend(self.get_adjacent_tiles(p))
+					
+		
+			
+	def put_field(self, pos, field):
+		self.field_map[pos] = field	
+		
 	def place_item_at(self, pos, item):
 		self.get_tile(pos).items.append(item)
 	
@@ -32,10 +90,12 @@ class Board:
 		self.grid = [[Tile() for _ in range(width)] for _ in range(height)]	
 		
 	def random_passable(self):
-		while True:
+		MAX_TRIES = 6 * self.width * self.height
+		for _ in range(MAX_TRIES):
 			pos = self.random_pos()
 			if self.passable(pos):
-				return pos		
+				return pos
+		raise RuntimeError("Could not find a valid passable position")		
 		
 	def init_border(self):
 		width = self.width
@@ -76,6 +136,8 @@ class Board:
 		if (val := self.get_los_cache(pos1, pos2)):
 			return val
 		old_pos = None
+		
+		num_field = 0
 		for pos in points_in_line(pos1, pos2):
 			if old_pos:
 				delta = old_pos - pos
@@ -87,9 +149,10 @@ class Board:
 					if blocked >= 2:
 						self.set_los_cache(pos1, pos, False)
 						return False
-			passable = self.passable(pos)	
+			passable = self.passable(pos)
+				
 			if not passable:	
-				self.set_los_cache(pos1, pos, False)
+				self.set_los_cache(pos1, pos2, False)
 				return False
 			
 			self.set_los_cache(pos1, pos, True)
@@ -97,6 +160,27 @@ class Board:
 			
 		self.set_los_cache(pos1, pos2, True)
 		return True
+		
+	def field_blocks_view(self, pos1, pos2):
+		return self._check_simple_field_blocks(pos1, pos2) and self._check_simple_field_blocks(pos2, pos1)
+		
+	def _check_simple_field_blocks(self, pos1, pos2):
+		if not self.field_map:
+			return False
+			
+		count = 0
+		transparency = 9999
+		for pos in points_in_line(pos1, pos2):
+			if count >= transparency:
+				return True
+				
+			field = self.field_at(pos)
+			
+			if field and pos != pos1:
+				transparency = min(transparency, field.transparency)
+				count += 1
+		
+		return False
 		
 	def _check_simple_clear_path(self, pos1, pos2):
 		if not self.has_line_of_sight(pos1, pos2):
@@ -110,8 +194,8 @@ class Board:
 				ad = abs(delta)
 				if ad.x == 1 and ad.y == 1:
 					blocked = 0
-					blocked += not self.get_collision_cache(Point(pos.x + delta.x, pos.y))
-					blocked += not self.get_collision_cache(Point(pos.x, pos.y + delta.y))
+					blocked += self.get_collision_cache(Point(pos.x + delta.x, pos.y)) is not None
+					blocked += self.get_collision_cache(Point(pos.x, pos.y + delta.y)) is not None
 					if blocked >= 2:
 						return False
 			if pos == pos2:
@@ -152,6 +236,10 @@ class Board:
 		if not self.in_bounds(pos):
 			return False
 		return not self.get_tile(pos).wall
+		
+	def blocks_sight(self, pos):
+		#This is just a placeholder to be extended when other things block sight
+		return not self.passable(pos)
 		
 	def reveal_tile_at(self, pos):
 		tile = self.get_tile(pos)
@@ -205,32 +293,39 @@ class Board:
 	
 	def get_fov(self, pos):
 		fov = set()
+		fov.add(pos)
+		
+		def cast_line_to(start, end, func):
+			count = 0
+			transp = 9999
+			for p in points_in_line(start, end):
+				if not self.has_line_of_sight(start, p):
+					break
+				if count >= transp:
+					break
+				func(p)
+				field = self.field_at(p)
+				if field and p != start:
+					transp = min(transp, field.transparency)
+					count += 1
+						
 		width = self.width
 		height = self.height
 		#Initial raycasting step
-		for x in range(width):
-			for p in points_in_line(pos, Point(x, 0)):		
-				if not self.has_line_of_sight(pos, p):
-					break
-				fov.add(p)	
-			for p in points_in_line(pos, Point(x, height-1)):
-				if not self.has_line_of_sight(pos, p):
-					break
-				fov.add(p)
+		for x in range(width):	
+			cast_line_to(pos, Point(x, 0), fov.add)
+			cast_line_to(pos, Point(x, height-1), fov.add)
+			
+			 
 		for y in range(1, height-1):
-			for p in points_in_line(pos, Point(0, y)):
-				if not self.has_line_of_sight(pos, p):
-					break
-				fov.add(p)
-			for p in points_in_line(pos, Point(width-1, y)):
-				if not self.has_line_of_sight(pos, p):
-					break
-				fov.add(p)
-				
+			cast_line_to(pos, Point(0, y), fov.add)
+			cast_line_to(pos, Point(width-1, y), fov.add)
+		
+			
 		#Cleanup step - ensure that nearby walls around open spaces are visible
 		seen = set()
 		for cell in fov.copy():
-			if not self.passable(cell):
+			if self.blocks_sight(cell):
 				continue
 			delta = cell - pos
 			neighbors = [
@@ -246,7 +341,7 @@ class Board:
 				if not self.in_bounds(p):
 					continue
 					
-				if not self.passable(p):
+				if self.blocks_sight(p):
 					can_see = False
 					
 					d = p - cell

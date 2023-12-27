@@ -28,15 +28,8 @@ class Player(Entity):
 		self.armor = None
 		self.activity_queue = deque()
 		self.activity = None
+		self.shield = None
 		self.inventory = []
-		self.noise_heard = 0
-		self.noise_last = 0
-		
-	def on_hear_noise(self, noise):
-		loudness = noise.loudness - self.distance(noise.pos)
-		if loudness <= 0:
-			return
-			
 		
 	def encumb_ev_mult(self):
 		enc = self.get_encumbrance()
@@ -176,6 +169,10 @@ class Player(Entity):
 				self.add_msg("There's a monster nearby!", "warning")
 			else:
 				self.add_msg("There are monsters nearby!", "warning")
+			return False
+			
+		if self.poison >= self.HP:
+			self.add_msg("You can't rest; you've been lethally poisoned!", "bad")
 			return False
 			
 		return True
@@ -510,6 +507,14 @@ class Player(Entity):
 				self.add_msg(eff_type.apply_msg, eff_type.type)
 		super().add_status(name, dur)
 		
+	def do_poison(self, amount):
+		if amount > 0:
+			self.poison += amount
+			if self.poison >= self.HP:
+				self.add_msg("You're lethally poisoned!", "bad")
+			else:
+				self.add_msg("You are poisoned!", "bad")
+		
 	def tick_poison(self, subt):
 		if self.poison > 0:
 			amount = 1 + div_rand(self.poison, 12)
@@ -540,6 +545,9 @@ class Player(Entity):
 				
 		if name == "Enlarged" or name == "Reduced":
 			self.recalc_max_hp()
+			
+	def tick(self):
+		self.shield_blocks = 0
 
 	def do_turn(self, used):
 		g = self.g
@@ -550,17 +558,38 @@ class Player(Entity):
 		while self.regen_tick >= 1:
 			self.regen_tick -= 1
 			self.heal(1)
-			
-		self.tick_poison(used)
 		
-		for name in list(self.status.keys()):
-			self.status[name] -= used
-			if self.status[name] <= 0:
-				self.remove_status(name)
-					
+		self.tick_poison(used)	
+		self.tick_status_effects(used)
+		
 		for mon in self.visible_monsters():
 			if mon.check_alerted():
 				mon.alerted()
+				
+	def teleport(self):
+		g = self.g
+		board = g.get_board()
+		
+		found = False
+		for _ in range(1000):
+			newpos = board.random_pos()
+			if self.can_move_to(newpos):
+				found = True
+				break
+		
+		if not found or newpos == self.pos:
+			self.add_msg("You surroundings appear to flicker for a brief moment.")
+			return
+		orig = self.pos.copy()
+		can_see_old = board.has_line_of_sight(newpos, orig)
+		if not can_see_old:
+			for mon in self.visible_monsters():
+				if mon.state == "AWARE":
+					mon.set_state("IDLE")
+					
+		self.move_to(newpos)
+		self.add_msg("You teleport!")
+		
 		
 	def stealth_mod(self):
 		stealth = super().stealth_mod()

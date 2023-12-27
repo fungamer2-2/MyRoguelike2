@@ -34,5 +34,29 @@
 		"protection": 5,
 		"encumbrance": 6,
 		"stealth_pen": 3
+	},
+	{
+		"id": "ring_mail",
+		"name": "ring mail",
+		"symbol": "R",
+		"protection": 6,
+		"encumbrance": 6,
+		"stealth_pen": 5
+	},
+	{
+		"id": "chain_mail",
+		"name": "chain mail",
+		"symbol": "C",
+		"protection": 9,
+		"encumbrance": 10,
+		"stealth_pen": 7
+	},
+	{
+		"id": "plate",
+		"name": "plate armor",
+		"symbol": "A",
+		"protection": 12,
+		"encumbrance": 11,
+		"stealth_pen": 10
 	}
 ]
