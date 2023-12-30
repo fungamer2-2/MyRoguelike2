@@ -201,15 +201,11 @@ class WeaponType(JSONObject):
 		obj.load_required(d, "name", str)
 		obj.load_required(d, "symbol", str),
 		obj.load_required(d, "damage_type", str),
-		obj.load_optional(d, "ranged", False, bool)
 		
-		if obj.ranged:
-			obj.load_required(d, "range", list)
-			if len(obj.range) != 2:
-				raise ValueError("range field must be a list of exactly two integers")
-		else:
-			obj.load_optional(d, "finesse", False, bool)
-			obj.load_optional(d, "heavy", False, bool)
+		obj.load_optional(d, "finesse", False, bool)
+		obj.load_optional(d, "heavy", False, bool)
+		
+		obj.load_optional(d, "reach", False, bool)
 		
 		dam = obj.get_required(d, "base_damage", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))

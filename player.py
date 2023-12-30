@@ -248,7 +248,7 @@ class Player(Entity):
 		
 	def recalc_max_hp(self):
 		base_hp = 10
-		mult = base_hp * 0.7
+		mult = base_hp * 0.6
 		level_mod = mult * (self.xp_level - 1)
 		level_mod *= self.CON / 10
 		level_mod += (self.CON - 10) / 2
@@ -613,4 +613,9 @@ class Player(Entity):
 			return armor.protection
 		return 0
 		
-	
+	def get_size(self):
+		if self.has_status("Reduced"):
+			return "small"
+		if self.has_status("Enlarged"):
+			return "large"
+		return "medium"

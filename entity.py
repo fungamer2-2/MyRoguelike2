@@ -1,6 +1,7 @@
 from utils import *
 from const import *
 from abc import abstractmethod, ABC
+import random
 
 class Entity(ABC):
 	g = None
@@ -262,4 +263,61 @@ class Entity(ABC):
 		for name in list(self.status.keys()):
 			self.status[name] -= amount
 			if self.status[name] <= 0:
-				self.remove_status(name)	
+				self.remove_status(name)
+				
+	def get_size(self):
+		return "medium"
+		
+	def ranged_evasion(self):
+		mod = 0
+		
+		match self.get_size():
+			case "tiny":
+				mod = +2
+			case "small":
+				mod = +1
+			case "large":
+				mod = -1
+			case "huge":
+				mod = -2
+			case "gargantuan":
+				mod = -4
+		ev = 10 + stat_mod(self.DEX)
+				
+		return ev + mod
+				
+	def shoot_projectile_at(self, target_pos, acc):
+		g = self.g
+		board = g.get_board()
+		
+		target = target_pos.copy()
+		acc_roll = gauss_roll(acc)
+		#if acc_roll < 0 and self.distance(target) > 1:
+#			target.x += rng(-1, 1)
+#			target.y += rng(-1, 1)
+
+		target_creature = g.entity_at(target)
+		
+		for pos in g.do_projectile(self.pos, target):
+			if not board.passable(pos):
+				break 
+				
+			if (c := g.entity_at(pos)):
+				ev = c.ranged_evasion()
+				if True or (target_creature and target_creature is c):
+					margin = acc_roll - ev
+					self.add_msg((acc_roll, ev))
+					to_hit = gauss_roll_prob(acc, ev)
+					self.add_msg(f"To-hit: {to_hit:.2f}%")
+					if margin >= 0:
+						self.add_msg_if_u_see(c, f"The projectile hits {c.get_name()}.") 
+						break
+					else:
+						self.add_msg_if_u_see(c, f"The projectile misses {c.get_name()}.")
+				elif True or not one_in(4): #We may have hit an unintended target
+					unintended_hit = gauss_roll(0) - ev
+					if unintended_hit >= 0:
+						self.add_msg_if_u_see(c, f"The projectile hits {c.get_name()}.") 
+						break
+				
+			

@@ -284,7 +284,36 @@ class Board:
 		if self.passable(c := Point(pos.x, pos.y + 1)):
 			adj.append(c)
 		return adj
-					
+		
+	def find_clear_path_to(self, pos1, pos2):
+		abs_d = abs(pos2 - pos1)
+		val = (min(abs_d.x, abs_d.y) - 1) // 2 + 1
+		
+		for d in range(val+1):
+			found = True
+			for pos in points_in_line(pos1, pos2, d=d):
+				if pos == pos2:
+					break
+				if not self.passable(pos):
+					found = False
+					break
+			if found:
+				return points_in_line(pos1, pos2, d=d)
+			
+			if d == 0:
+				continue
+			found = True
+			for pos in points_in_line(pos1, pos2, d=-d):
+				if pos == pos2:
+					break
+				if not self.passable(pos):
+					found = False
+					break
+			if found:
+				return points_in_line(pos1, pos2, d=-d)
+			
+		return points_in_line(pos1, pos2)
+				
 	def procgen_level(self):
 		from procgen import procgen
 		self.clear_grid()

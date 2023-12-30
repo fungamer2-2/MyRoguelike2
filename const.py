@@ -6,7 +6,7 @@ MESSAGE_LOG_CAPACITY = 100
 
 MIN_HIT_MISS_PROB = 4
 
-SHIELD_BONUS = 2.5
+SHIELD_BONUS = 3
 
 COLOR_SILVER = 7
 COLOR_GRAY = 8
@@ -37,3 +37,4 @@ class ItemUseResult:
 	USED = 1 #Item was used, but should not be consumed
 	CONSUMED = 2 #Item was used, and should be consumed
 
+ANIMATION_DELAY = 0.04

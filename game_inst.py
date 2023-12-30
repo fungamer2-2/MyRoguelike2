@@ -51,6 +51,7 @@ class Game:
 		self.delay = False
 		self.last_save_turn = -999
 		self.last_save_time = time.time()
+		self.projectile = None
 		
 	def __getstate__(self):
 		d = self.__dict__.copy()
@@ -251,7 +252,6 @@ class Game:
 		typ = self.get_armor_type(id)
 		return Armor.from_type(typ)
 	
-	
 	def place_items(self):
 		board = self.get_board()
 		
@@ -343,8 +343,7 @@ class Game:
 		while num_monsters > 0:
 			typ = random.choice(eligible_types[levels.pick()])
 			min_level = typ.level
-			pack_spawn_chance = self.level - min_level
-			if "PACK_TRAVEL" in typ.flags and x_in_y(pack_spawn_chance, pack_spawn_chance + 4) and one_in(6 + packs * 3):
+			if "PACK_TRAVEL" in typ.flags and x_in_y(self.level, self.level + 6) and one_in(6 + packs * 3):
 				pack_num = rng(3, 5)
 				if self.spawn_pack(typ.id, pack_num):
 					num_monsters -= pack_num
@@ -611,7 +610,10 @@ class Game:
 				symbol = "." if seen else " "
 				if seen:
 					color = curses.color_pair(COLOR_GRAY)
-				
+			
+			if seen and self.projectile and pos == self.projectile:
+				symbol = "*"
+				color = 0
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color)
 			
 	def draw_stats(self):
@@ -852,6 +854,7 @@ class Game:
 				self.save()
 				self.deinit_window()
 				exit()
+		
 		return False
 		
 	def select_monster_menu(self, monsters, check_fov=True):
@@ -1035,6 +1038,24 @@ class Game:
 			
 			if key == 10:
 				return item
+				
+	def do_projectile(self, pos1, pos2):
+		board = self.get_board()
+		player = self.get_player()
+		
+		path_iter = board.find_clear_path_to(pos1, pos2)
+		try:
+			for pos in path_iter:
+				if pos == pos1:
+					continue
+				self.projectile = pos
+				yield pos
+				if player.sees_pos(pos):
+					self.draw_board()
+					time.sleep(ANIMATION_DELAY)
+		except GeneratorExit:
+			pass
+		self.projectile = None
 		
 class PopupInfo:
 	

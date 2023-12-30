@@ -562,7 +562,7 @@ class Monster(Entity):
 	def acid_resist(self):
 		if self.has_flag("ACID_RESISTANT"):
 			return 1
-		return 0	
+		return 0
 	
 	def inflict_poison_to(self, c):
 		poison_typ = self.type.poison
@@ -611,6 +611,9 @@ class Monster(Entity):
 		
 	def perception_roll(self):
 		return self.roll_wisdom() + self.get_skill("perception")
+	
+	def get_size(self):
+		return self.type.size
 	
 	def on_hit(self, ent):
 		g = self.g

@@ -97,7 +97,7 @@ def display_bar(val, max, width):
 	return f"[{bars}]"
 	
 def apply_armor(damage, armor):
-	prot = rng(0, armor) + rng(0, armor)
+	prot = rng(0, 2 * armor)
 	return max(damage - prot, 0)
 	
 class WeightedList:
@@ -210,7 +210,7 @@ class Point:
 		delta = other - self
 		return math.sqrt(delta.x**2 + delta.y**2)
 		
-def points_in_line(p1, p2):
+def points_in_line(p1, p2, d=0):
 	x1 = p1.x
 	y1 = p1.y
 	x2 = p2.x
@@ -220,7 +220,7 @@ def points_in_line(p1, p2):
 	sx = 1 if x1 < x2 else -1
 	dy = -abs(y2 - y1)
 	sy = 1 if y1 < y2 else -1
-	error = dx + dy
+	error = dx + dy + d
 	
 	pos = Point(x1, y1)
 	endpos = Point(x2, y2)
