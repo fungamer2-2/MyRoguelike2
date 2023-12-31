@@ -297,7 +297,7 @@ class Board:
 				if not self.passable(pos):
 					found = False
 					break
-			if found:
+			if found and pos == pos2:
 				return points_in_line(pos1, pos2, d=d)
 			
 			if d == 0:
@@ -309,7 +309,7 @@ class Board:
 				if not self.passable(pos):
 					found = False
 					break
-			if found:
+			if found and pos == pos2:
 				return points_in_line(pos1, pos2, d=-d)
 			
 		return points_in_line(pos1, pos2)

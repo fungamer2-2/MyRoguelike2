@@ -467,7 +467,7 @@ class Player(Entity):
 		
 	def on_defeat_monster(self, mon):
 		g = self.g
-		xp_gain = 15 * mon.get_diff_level()**1.75
+		xp_gain = 15 * mon.get_diff_level()**1.7
 		xp_gain = round(xp_gain/5)*5
 		self.gain_xp(xp_gain)
 		

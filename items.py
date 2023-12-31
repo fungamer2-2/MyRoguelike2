@@ -197,16 +197,15 @@ class ThunderScroll(Scroll):
 			roll = gauss_roll(stat_mod(m.CON))
 			player.add_msg_if_u_see(m, f"{m.get_name(True)} is hit by the sonic wave!")
 			if roll >= 12:
-				m.take_damage(dice(1, 8))
+				m.take_damage(dice(1, 8), player)
 				if m.is_alive():
 					player.add_msg_if_u_see(m, f"{m.get_name(True)} partially absorbs the force of the shockwave.")
 			else:
-				m.take_damage(dice(2, 8))			
+				m.take_damage(dice(2, 8), player)			
 				if m.is_alive() and m.push_away_from(player.pos, 2):
 					player.add_msg_if_u_see(m, f"The thunderous wave pushes {m.get_name()} away from you!")
 			
-			if not m.is_alive():
-				player.on_defeat_monster(m)
+			
 		player.use_energy(100)
 		
 		

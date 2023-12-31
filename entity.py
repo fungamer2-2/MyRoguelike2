@@ -286,38 +286,63 @@ class Entity(ABC):
 				
 		return ev + mod
 				
-	def shoot_projectile_at(self, target_pos, acc):
+	def shoot_projectile_at(self, target_pos, proj):
 		g = self.g
 		board = g.get_board()
 		
 		target = target_pos.copy()
-		acc_roll = gauss_roll(acc)
-		#if acc_roll < 0 and self.distance(target) > 1:
-#			target.x += rng(-1, 1)
-#			target.y += rng(-1, 1)
-
+		acc_roll = gauss_roll(proj.accuracy)
+		acc_margin = acc_roll - 5
+		
+		
+		wild_miss = False
+		if acc_margin < 0 and self.distance(target) > 1:
+			#An inaccurate projectile targets a random nearby point instead
+			max_fuzz = div_rand(max(0, self.distance(target) - 2), 6) + 1
+			for _ in range(100):
+				target = target_pos.copy()
+				target.x += rng(-max_fuzz, max_fuzz)
+				target.y += rng(-max_fuzz, max_fuzz)
+				if target == target_pos:
+					continue
+				if self.sees_pos(target):
+					break
+			wild_miss = True
+			
 		target_creature = g.entity_at(target)
 		
 		for pos in g.do_projectile(self.pos, target):
 			if not board.passable(pos):
-				break 
-				
+				break
+			
+			
 			if (c := g.entity_at(pos)):
 				ev = c.ranged_evasion()
-				if True or (target_creature and target_creature is c):
+				if target_creature and target_creature is c:
 					margin = acc_roll - ev
-					self.add_msg((acc_roll, ev))
-					to_hit = gauss_roll_prob(acc, ev)
-					self.add_msg(f"To-hit: {to_hit:.2f}%")
+					
+					to_hit = gauss_roll_prob(proj.accuracy, ev)
+					
 					if margin >= 0:
-						self.add_msg_if_u_see(c, f"The projectile hits {c.get_name()}.") 
+						self.add_msg_if_u_see(c, f"The {proj.name} hits {c.get_name()}.") 
+						c.take_damage(dice(proj.dmg_dice, proj.dmg_sides), self)
+						if c.is_alive() and c.is_monster(): 
+							c.alerted()					
 						break
 					else:
-						self.add_msg_if_u_see(c, f"The projectile misses {c.get_name()}.")
-				elif True or not one_in(4): #We may have hit an unintended target
-					unintended_hit = gauss_roll(0) - ev
-					if unintended_hit >= 0:
-						self.add_msg_if_u_see(c, f"The projectile hits {c.get_name()}.") 
+						if not wild_miss:
+							self.add_msg_if_u_see(c, f"The {proj.name} misses {c.get_name()}.")
+						if c.is_monster() and one_in(2):
+							c.alerted()
+							
+				else: #We may have hit an unintended target
+					unintended_hit = 15 - rng_float(0.0, acc_margin) - ev
+					if unintended_hit >= 0:			
+						self.add_msg_if_u_see(c, f"The {proj.name} hits {c.get_name()}.")
+						c.take_damage(dice(proj.dmg_dice, proj.dmg_sides), self)
+						if c.is_alive() and c.is_monster():
+							c.alerted()
 						break
-				
+					elif one_in(2) and c.is_monster():
+						c.alerted()
 			

@@ -27,6 +27,11 @@ def gen_stats():
 			
 	return stats
 	
+def rng_float(a, b):
+	if a > b:
+		a, b = b, a
+	return random.uniform(a, b)
+	
 def triangular_roll(a, b):
 	#Returns a rand integer between a and b inclusive, biased towards the average result
 	range = b - a

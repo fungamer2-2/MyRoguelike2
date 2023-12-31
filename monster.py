@@ -156,6 +156,7 @@ class Monster(Entity):
 			eff_vol *= 2
 		
 		seen = self.sees_pos(noise.pos)
+		in_player_fov = player.sees_pos(noise.pos)
 			
 		loudness = eff_vol - distance
 		if loudness <= 0:
@@ -165,7 +166,7 @@ class Monster(Entity):
 		
 		if self.state in ["IDLE", "TRACKING"]:
 			dist_to_player = noise.pos.distance(player.pos)
-			if seen and dist_to_player < rng(1, 8):
+			if seen and in_player_fov and dist_to_player < rng(1, 10):
 				self.alerted() 
 			elif self.soundf < duration:
 				self.state = "TRACKING_SOUND"
@@ -277,7 +278,7 @@ class Monster(Entity):
 		g = self.g
 		board = g.get_board()
 		
-		if not one_in(5) and self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos():
+		if self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos():
 			return
 			
 		self.set_rand_target()
@@ -400,11 +401,14 @@ class Monster(Entity):
 				return True
 		return False
 		
-	def take_damage(self, dam):
+	def take_damage(self, dam, src=None):
 		super().take_damage(dam)
 		if self.HP <= 0:
 			self.die()
-		
+			if src and src.is_player():
+				src.on_defeat_monster(self)
+		elif src:
+			self.on_hit(src)
 	def die(self):
 		g = self.g
 		board = g.get_board()
@@ -591,13 +595,14 @@ class Monster(Entity):
 	def random_guess_invis(self):
 		g = self.g
 		board = g.get_board()
-		possibilities = []
+		chance = 1
+		target = None
 		for pos in board.points_in_radius(self.pos, 3):
-			if self.sees_pos(pos):
-				possibilities.append(pos)
-		if possibilities:
-			p = random.choice(possibilities)
-			self.set_target(p)	
+			if self.sees_pos(pos) and one_in(chance):
+				chance += 1
+				target = pos
+		if target:
+			self.set_target(target)	
 	
 	def determine_invis(self, c):
 		g = self.g
