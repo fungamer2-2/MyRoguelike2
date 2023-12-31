@@ -855,17 +855,6 @@ class Game:
 				self.save()
 				self.deinit_window()
 				exit()
-		elif char == "*":
-			mons = list(player.visible_monsters())
-			if not mons:
-				return False
-				
-			projectile = Projectile(accuracy=(player.DEX-10)/2)
-				
-			target = random.choice(mons).pos
-			player.shoot_projectile_at(target, projectile)
-			player.use_energy(100)
-			return True
 			
 		return False
 		
