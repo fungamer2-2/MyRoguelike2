@@ -69,6 +69,7 @@ def consolidate_inventory_display(player):
 	display = []
 	for name in sorted(items.keys()):
 		num = counts[name]
+		item = items[name]
 		if num > 1:
 			name += f" (x{num})"
 		display.append((name, item))

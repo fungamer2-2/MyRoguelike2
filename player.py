@@ -299,6 +299,12 @@ class Player(Entity):
 		g = self.g
 		board = g.get_board()
 		
+		cost = 100
+		if item is self.weapon:
+			cost = 0
+			self.weapon = None
+			
+		self.use_energy(100)
 		self.remove_from_inventory(item)
 		board.place_item_at(self.pos, item)
 		self.add_msg(f"You drop your {item.name}.")
