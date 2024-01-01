@@ -12,7 +12,7 @@ It entirely uses the CLI interface.
 ## Controls
 `wasd` - move around<br />
 `SPACE` - wait a turn<br />
-`u` - use an item from inventory<br />
+`i` - open inventory menu<br />
 `p` - pickup item at current position<br />
 `r` - rest until HP is restored<br />
 `v` - view info of any monster in FOV<br />
