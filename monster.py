@@ -375,7 +375,8 @@ class Monster(Entity):
 		target_u = self.sees(player) and self.state == "AWARE"
 		
 		#Each member of the pack tries to move toward the average of its nearby members
-		for mon in g.monsters_in_radius(self.pos, 5):
+		rad = 2 if self.state == "IDLE" else 5
+		for mon in g.monsters_in_radius(self.pos, rad):
 			if self is mon:
 				continue
 			if not self.sees(mon):
@@ -409,6 +410,7 @@ class Monster(Entity):
 				src.on_defeat_monster(self)
 		elif src:
 			self.on_hit(src)
+			
 	def die(self):
 		g = self.g
 		board = g.get_board()
@@ -434,7 +436,7 @@ class Monster(Entity):
 						mon.target_entity(player)
 			self.set_state("AWARE")
 		
-			self.target_entity(player)
+		self.target_entity(player)
 				
 	def move_dir(self, dx, dy):
 		if super().move_dir(dx, dy):

@@ -75,7 +75,8 @@ class Player(Entity):
 				self.activity = None
 				g.save()
 		
-		if self.activity_queue and not activity:
+		if self.activity_queue and not self.activity:
+			
 			new_act = self.activity_queue.popleft()
 			self.add_msg(f"You begin {new_act.name}.")
 			self.activity = new_act
@@ -210,12 +211,12 @@ class Player(Entity):
 		
 	def calc_to_hit_bonus(self, mon):
 		level_bonus = (self.xp_level - 1) / 3
-		stat = (self.STR + self.DEX) / 2
+		stat = self.STR
 		
 		finesse = self.weapon.finesse
 		heavy = self.weapon.heavy
 		if finesse:
-			stat = max(self.STR, self.DEX) * 1.1
+			stat = max(self.STR, self.DEX)
 		
 		stat_bonus = stat_mod(stat)
 		mod = level_bonus + stat_bonus
@@ -289,18 +290,18 @@ class Player(Entity):
 		self.use_energy(100)
 		return True
 		
-	def use_item(self):
-		if not self.inventory:
-			self.add_msg("You have nothing in your inventory.")
-			return False
-		g = self.g
-		item = g.select_use_item()
-		if not item:
-			return False
+	def use_item(self, item):
 		used = item.use(self)
 		if used == ItemUseResult.CONSUMED:
 			self.remove_from_inventory(item)
-		return used != ItemUseResult.NOT_USED	
+			
+	def drop_item(self, item):
+		g = self.g
+		board = g.get_board()
+		
+		self.remove_from_inventory(item)
+		board.place_item_at(self.pos, item)
+		self.add_msg(f"You drop your {item.name}.")
 		
 	def on_move(self, oldpos):
 		g = self.g
@@ -344,15 +345,16 @@ class Player(Entity):
 		return True
 		
 	def take_damage(self, dam):
+		g = self.g
 		if dam > 0:
 			self.set_hp(self.HP - dam)
 			self.interrupt()
 			if 0 < self.HP <= self.MAX_HP // 5:
 				self.add_msg(f"***LOW HP WARNING***", "bad")
 			if self.HP <= 0:
-				if self.debug_wizard:
-					self.add_msg("You can't die while you're debugging, can you?", "good")
-					self.heal(999)
+				if self.debug_wizard and not g.confirm("Die?"):
+					self.add_msg("As the wizard of debugging, you decided to stay alive!", "good")
+					self.heal(self.MAX_HP)
 				else:
 					self.add_msg("You have died...", "bad")			
 	
@@ -367,8 +369,6 @@ class Player(Entity):
 				scale = 4
 		
 		noise = rng(1, 2) + mult_rand_frac(round(damage ** 0.6), scale, 5)
-		
-		
 		if sneak_attack:
 			noise = div_rand(noise, 3)
 			
@@ -619,3 +619,5 @@ class Player(Entity):
 		if self.has_status("Enlarged"):
 			return "large"
 		return "medium"
+		
+	 

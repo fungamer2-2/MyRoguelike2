@@ -240,6 +240,6 @@
 		"speed": 100,
 		"weapon": "greataxe",
 		"attack_msg": "<monster> hits <target> with a greataxe",
-		"flags": [ "SEES" ]
+		"flags": [ "SEES", "PACK_TRAVEL" ]
 	}
 ]

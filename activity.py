@@ -18,3 +18,11 @@ class EquipArmorActivity(Activity):
 		
 	def on_finished(self, player):
 		player.equip_armor(self.armor)
+		
+class RemoveArmorActivity(Activity):
+	
+	def __init__(self, armor, duration):
+		super().__init__(f"taking off your {armor.name}", duration)
+		
+	def on_finished(self, player):
+		player.unequip_armor()

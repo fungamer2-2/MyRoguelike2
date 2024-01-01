@@ -15,6 +15,8 @@ from projectile import Projectile
 	
 import curses, textwrap, math, pickle, time
 
+from inventory_ui import *
+
 def _check_type(typ, types, type_name):
 	if typ not in types:
 		valid_types = sorted(types.keys())
@@ -72,11 +74,13 @@ class Game:
 		
 	def save(self):
 		try:
-			import copy
-			pickle.dump(self, open(SAVED_GAME_PATH, "wb"))
-			self.last_save_time = time.time()
+			saved_data = pickle.dumps(self)	
 		except:
 			pass
+		else:
+			with open(SAVED_GAME_PATH, "wb") as file:
+				file.write(saved_data)
+			self.last_save_time = time.time()
 			
 	def load(self):
 		obj = pickle.load(open(SAVED_GAME_PATH, "rb"))
@@ -612,11 +616,18 @@ class Game:
 				if seen:
 					color = curses.color_pair(COLOR_GRAY)
 			
-			if seen and self.projectile and pos == self.projectile:
-				symbol = "*"
-				color = 0
 			self.draw_symbol(pos.y + offset_y, pos.x, symbol, color)
-			
+	
+	def maybe_draw_projectile(self, offset_y):
+		if not self.projectile:
+			return
+		player = self.get_player()
+		proj = self.projectile
+		
+		if player.sees_pos(proj):
+			self.draw_symbol(proj.y + offset_y, proj.x, "*")
+	
+		
 	def draw_stats(self):
 		board = self.get_board()
 		height = board.height
@@ -757,6 +768,7 @@ class Game:
 		self.reveal_seen_tiles()
 		self.draw_walls(offset_y)
 		self.draw_monsters(offset_y)
+		self.maybe_draw_projectile(offset_y)
 		self.draw_stats()
 		self.draw_messages(offset_y+1)
 		screen.move(20 + offset_y, 0)
@@ -846,7 +858,9 @@ class Game:
 		elif char == "p":
 			return player.pickup()
 		elif char == "u":
-			return player.use_item()
+			self.add_message("The 'u'se menu has been moved to the 'i'nventory menu.", "info")
+		elif char == "i":
+			return self.open_player_inventory()
 		elif char == " ":
 			player.use_energy(100)
 			return True
@@ -855,6 +869,19 @@ class Game:
 				self.save()
 				self.deinit_window()
 				exit()
+		elif char == "*":
+			mons = list(player.visible_monsters())
+			if not mons:
+				return False
+			
+			acc = (player.DEX-10)/2
+			target = random.choice(mons).pos
+			
+			projectile = Projectile(accuracy=acc)
+			
+			player.shoot_projectile_at(target, projectile)
+			player.use_energy(100)
+			return True
 			
 		return False
 		
@@ -989,56 +1016,15 @@ class Game:
 		while self.getch() != 10: 
 			pass
 			
-	def select_use_item(self):
+	def open_player_inventory(self):
 		player = self.get_player()
-		screen = self.screen
-		scroll = 0
-		num_items = len(player.inventory)
-		max_scroll = max(0, num_items - 9)
 		
-		can_scroll = max_scroll > 0
+		if not player.inventory:
+			self.add_message("Your inventory is empty.")
+			return False
 		
-		string = "Use which item? Enter a number from 1 - 9, then press Enter. Press 0 to cancel. Press Shift+D to view description."
-		if can_scroll:
-			string += " (W and S keys to scroll)"
+		return inventory_menu(self)
 		
-		select = 0
-			
-		while True:
-			screen.erase()
-			screen.addstr(0, 0, string)
-			for i in range(min(num_items, 9)):
-				index = i + scroll
-				
-				item = player.inventory[index]
-				color = curses.A_REVERSE if i == select else 0
-				screen.addstr(i + 2, 0, str(i+1), color)
-				screen.addstr(i + 2, 2, f" - {item.name}")
-			screen.refresh()
-			key = screen.getch()
-			char = chr(key)
-			
-			if can_scroll:
-				if char == "w":
-					scroll -= 1
-				elif char == "s":
-					scroll += 1
-				scroll = clamp(scroll, 0, max_scroll)
-			
-			item = player.inventory[scroll + select]
-			
-			if char == "0":
-				return None
-			elif char == "D":
-				self.add_message(item.name + " - " + item.description, "info")
-				return None
-			elif char in "123456789":
-				value = int(char) - 1
-				if value < len(player.inventory):
-					select = value
-			
-			if key == 10:
-				return item
 				
 	def do_projectile(self, pos1, pos2):
 		board = self.get_board()

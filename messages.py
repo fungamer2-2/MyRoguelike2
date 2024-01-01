@@ -14,6 +14,8 @@ class MessageLog:
 		self.msgs = deque(maxlen=capacity)
 		
 	def add_message(self, msg, typ="neutral"):
+		if not msg:
+			return
 		if typ not in MSG_TYPES:
 			raise ValueError(f"invalid message type {typ!r}")
 		

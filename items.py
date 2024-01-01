@@ -285,6 +285,8 @@ class Armor(Item):
 		
 	def use(self, player):
 		dur = triangular_roll(20, 40)
+		if player.armor:
+			player.queue_activity(RemoveArmorActivity(player.armor, dur//2))
 		player.queue_activity(EquipArmorActivity(self, dur))
 
 class Shield(Item):

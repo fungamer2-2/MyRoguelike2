@@ -190,6 +190,9 @@ class EffectType(JSONObject):
 		obj.load_required(d, "apply_msg", str)
 		obj.load_required(d, "extend_msg", str)
 		obj.load_required(d, "remove_msg", str)
+		obj.load_optional(d, "mon_apply_msg", "", str)
+		obj.load_optional(d, "mon_extend_msg", "", str)
+		obj.load_optional(d, "mon_remove_msg", "", str)
 		return obj
 		
 class WeaponType(JSONObject):
@@ -204,8 +207,6 @@ class WeaponType(JSONObject):
 		
 		obj.load_optional(d, "finesse", False, bool)
 		obj.load_optional(d, "heavy", False, bool)
-		
-		obj.load_optional(d, "reach", False, bool)
 		
 		dam = obj.get_required(d, "base_damage", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))

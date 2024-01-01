@@ -283,7 +283,7 @@ class Entity(ABC):
 			case "gargantuan":
 				mod = -4
 		ev = 10 + stat_mod(self.DEX)
-				
+			
 		return ev + mod
 				
 	def shoot_projectile_at(self, target_pos, proj):
@@ -308,6 +308,8 @@ class Entity(ABC):
 				if self.sees_pos(target):
 					break
 			wild_miss = True
+			if self.is_player():
+				self.add_msg("Your aim is off, and you completely miss!")
 			
 		target_creature = g.entity_at(target)
 		
@@ -318,11 +320,13 @@ class Entity(ABC):
 			
 			if (c := g.entity_at(pos)):
 				ev = c.ranged_evasion()
+				
 				if target_creature and target_creature is c:
 					margin = acc_roll - ev
 					
 					to_hit = gauss_roll_prob(proj.accuracy, ev)
 					
+					self.add_msg(f"To-hit: {to_hit:.2f}%")
 					if margin >= 0:
 						self.add_msg_if_u_see(c, f"The {proj.name} hits {c.get_name()}.") 
 						c.take_damage(dice(proj.dmg_dice, proj.dmg_sides), self)
@@ -336,7 +340,7 @@ class Entity(ABC):
 							c.alerted()
 							
 				else: #We may have hit an unintended target
-					unintended_hit = 15 - rng_float(0.0, acc_margin) - ev
+					unintended_hit = 15 - rng_float(0, acc_margin) - ev
 					if unintended_hit >= 0:			
 						self.add_msg_if_u_see(c, f"The {proj.name} hits {c.get_name()}.")
 						c.take_damage(dice(proj.dmg_dice, proj.dmg_sides), self)
