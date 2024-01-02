@@ -102,7 +102,7 @@ def inventory_menu(g):
 		for i in range(num_displayed):
 			index = i + scroll
 				
-			name, item = display[i]
+			name, item = display[index]
 			color = curses.A_REVERSE if i == select else 0
 			screen.addstr(i + 2, 0, str(i+1), color)
 			
