@@ -331,13 +331,15 @@ class Entity(ABC):
 						self.add_msg_if_u_see(c, f"The {proj.name} hits {c.get_name()}.") 
 						c.take_damage(dice(proj.dmg_dice, proj.dmg_sides), self)
 						if c.is_alive() and c.is_monster(): 
-							c.alerted()					
+							if c.is_player():
+								c.alerted()					
 						break
 					else:
 						if not wild_miss:
 							self.add_msg_if_u_see(c, f"The {proj.name} misses {c.get_name()}.")
 						if c.is_monster() and one_in(2):
-							c.alerted()
+							if c.is_player():
+								c.alerted()	
 							
 				else: #We may have hit an unintended target
 					unintended_hit = 15 - rng_float(0, acc_margin) - ev
@@ -345,8 +347,10 @@ class Entity(ABC):
 						self.add_msg_if_u_see(c, f"The {proj.name} hits {c.get_name()}.")
 						c.take_damage(dice(proj.dmg_dice, proj.dmg_sides), self)
 						if c.is_alive() and c.is_monster():
-							c.alerted()
+							if c.is_player():
+								c.alerted()
 						break
 					elif one_in(2) and c.is_monster():
-						c.alerted()
+						if c.is_player():
+							c.alerted()
 			

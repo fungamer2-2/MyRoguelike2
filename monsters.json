@@ -241,5 +241,26 @@
 		"weapon": "greataxe",
 		"attack_msg": "<monster> hits <target> with a greataxe",
 		"flags": [ "SEES", "PACK_TRAVEL" ]
+	},
+	{
+		"id": "dire_wolf",
+		"name": "dire wolf",
+		"symbol": "F",
+		"category": "beast",
+		"STR": 17,
+		"DEX": 15,
+		"CON": 15,
+		"INT": 3,
+		"WIS": 12,
+		"CHA": 7,
+		"HP": 15,
+		"to_hit": 5,
+		"level": 14,
+		"diff": 5,
+		"speed": 100,
+		"base_damage": "2d6",
+		"skills": { "perception": 3 },
+		"attack_msg": "<monster> hits <target> with a greataxe",
+		"flags": [ "SEES", "KEEN_HEARING", "PACK_TRAVEL", "PACK_TACTICS" ]
 	}
 ]

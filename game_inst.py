@@ -281,7 +281,8 @@ class Game:
 			["handaxe", 15],
 			["battleaxe", 10],
 			["scimitar", 6],
-			["greatsword", 4]
+			["greatsword", 4],
+			["greataxe", 5]
 		]
 		
 		for _ in range(rng(1, 5)):

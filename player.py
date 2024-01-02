@@ -5,6 +5,8 @@ from items import UNARMED
 from collections import deque
 import math
 
+from activity import *
+
 class Player(Entity):
 	
 	def __init__(self):
@@ -296,15 +298,24 @@ class Player(Entity):
 			self.remove_from_inventory(item)
 			
 	def drop_item(self, item):
-		g = self.g
-		board = g.get_board()
+		if item is self.armor:
+			dur = triangular_roll(10, 20)
+			self.queue_activity(RemoveArmorActivity(item, dur, drop=True))
+			return
 		
 		cost = 100
 		if item is self.weapon:
 			cost = 0
 			self.weapon = None
+		
 			
 		self.use_energy(100)
+		self.quick_drop(item)
+		
+	def quick_drop(self, item):
+		g = self.g
+		board = g.get_board()
+		
 		self.remove_from_inventory(item)
 		board.place_item_at(self.pos, item)
 		self.add_msg(f"You drop your {item.name}.")
