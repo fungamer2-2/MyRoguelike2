@@ -327,7 +327,7 @@ class Game:
 		eligible_types = {}
 		highest = 0
 		
-		special = not x_in_y(8, self.level) and one_in(6)
+		special = not x_in_y(10, self.level) and one_in(7)
 		
 		levels = WeightedList()
 		for typ in self.get_all_monster_types():
