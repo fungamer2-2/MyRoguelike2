@@ -563,6 +563,7 @@ class Monster(Entity):
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {defender}.")
 		
 		self.use_energy(100)
+		self.set_target(pos)
 		return True
 		
 	def acid_resist(self):

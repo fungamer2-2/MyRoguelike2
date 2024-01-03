@@ -207,6 +207,7 @@ class WeaponType(JSONObject):
 		
 		obj.load_optional(d, "finesse", False, bool)
 		obj.load_optional(d, "heavy", False, bool)
+		obj.load_optional(d, "thrown", False, (bool, list))
 		
 		dam = obj.get_required(d, "base_damage", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))

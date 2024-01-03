@@ -109,8 +109,8 @@ def inventory_menu(g):
 			string = f" - {name}"
 			if i == 0 and scroll > 0:		
 				string += "    [↑]"
-			elif i == num_displayed - 1:
-				pass
+			elif i == num_displayed - 1 and scroll < max_scroll:
+				string += "    [↓]"
 				
 			screen.addstr(i + 2, 2, string)
 		screen.refresh()

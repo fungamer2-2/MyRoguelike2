@@ -580,7 +580,7 @@ class Player(Entity):
 		self.tick_status_effects(used)
 		
 		for mon in self.visible_monsters():
-			if mon.check_alerted():
+			if not mon.is_aware() and mon.check_alerted():
 				mon.alerted()
 				
 	def teleport(self):

@@ -260,7 +260,7 @@
 		"speed": 100,
 		"base_damage": "2d6",
 		"skills": { "perception": 3 },
-		"attack_msg": "<monster> hits <target> with a greataxe",
+		"attack_msg": "<monster> bites <target>",
 		"flags": [ "SEES", "KEEN_HEARING", "PACK_TRAVEL", "PACK_TACTICS" ]
 	}
 ]
