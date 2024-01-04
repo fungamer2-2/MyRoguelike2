@@ -220,6 +220,7 @@ class Weapon(Item):
 		self.dmg_type = "bludgeon"
 		self.finesse = False
 		self.heavy = False 
+		self.thrown = False
 		
 	def roll_damage(self):
 		return self.damage.roll()
@@ -237,6 +238,7 @@ class Weapon(Item):
 		obj.damage = typ.base_damage
 		obj.dmg_type = typ.damage_type
 		obj.finesse = typ.finesse
+		obj.thrown = typ.thrown
 		return obj
 		
 	def use(self, player):

@@ -23,6 +23,7 @@ class Monster(Entity):
 		self.soundf = 0
 		self.damage = Dice(0,0,0)
 		self.weapon = None
+		self.shield = False
 		self.type = None
 		self.bat_tick = 0
 		self.energy = rng(-100, 100)
@@ -65,6 +66,7 @@ class Monster(Entity):
 		if weap:
 			weap = g.create_weapon(weap)
 		m.weapon = weap
+		m.shield = typ.shield
 		return m
 		
 	def has_flag(self, name):

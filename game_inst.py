@@ -873,6 +873,36 @@ class Game:
 			
 		return False
 		
+	def select_monster(self, monsters, prompt):
+		monsters = monsters.copy()
+		
+		if not monsters:
+			return None
+			
+		monsters.sort(key=lambda m: m.pos.y)
+		monsters.sort(key=lambda m: m.pos.x)	
+			
+		cursor = 0
+		self.add_message(f"{prompt} (Use the a and d keys to navigate, then press Enter to select)")
+		mon = None
+		
+		while True:
+			self.set_mon_select(monsters[cursor])
+			self.draw_board()
+			code = self.getch()
+			char = chr(code)
+			if char == "a":
+				cursor -= 1
+			elif char == "d":
+				cursor += 1
+			elif code == 10:
+				mon = monsters[cursor]
+				break
+			cursor %= len(monsters)
+		
+		self.clear_mon_select()
+		return mon
+		
 	def select_monster_menu(self, monsters, check_fov=True):
 		player = self.get_player()
 		monsters = monsters.copy()
@@ -886,7 +916,7 @@ class Game:
 		monsters.sort(key=lambda m: m.pos.y)
 		monsters.sort(key=lambda m: m.pos.x)
 		
-		self.add_message("View info of which monster? (Use the a and d keys to select, then press Enter)")
+		self.add_message("View info of which monster? (Use the a and d keys to navigate, then press Enter to select)")
 		
 		cursor = 0
 		mon = None
@@ -959,6 +989,8 @@ class Game:
 		#If using a shield, factor that into the calculation
 		if player.shield:
 			player_ev += SHIELD_BONUS
+		if monster.shield:
+			mon_ev += SHIELD_BONUS
 		
 		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), mon_ev)
 		monster_to_hit = gauss_roll_prob(monster.calc_to_hit_bonus(player), player_ev)

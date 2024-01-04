@@ -6,6 +6,7 @@ from collections import deque
 import math
 
 from activity import *
+from projectile import Projectile
 
 class Player(Entity):
 	
@@ -111,6 +112,7 @@ class Player(Entity):
 		amount = 100 * self.xp_level ** 1.5
 		return round(amount/10)*10
 		
+	
 	def inc_random_stat(self):
 		rand = rng(1, 6)
 		
@@ -211,17 +213,33 @@ class Player(Entity):
 	def get_name(self, capitalize=False):
 		return "You" if capitalize else "you"
 		
-	def calc_to_hit_bonus(self, mon):
+	def attack_accuracy(self, ranged=False, item=None):
+		if not item:
+			item = self.weapon
+			
 		level_bonus = (self.xp_level - 1) / 3
 		stat = self.STR
 		
-		finesse = self.weapon.finesse
-		heavy = self.weapon.heavy
+		finesse = item.finesse
+		heavy = item.heavy
 		if finesse:
 			stat = max(self.STR, self.DEX)
-		
+		elif ranged:
+			stat = self.DEX
+			
 		stat_bonus = stat_mod(stat)
 		mod = level_bonus + stat_bonus
+		
+		if self.has_status("Reduced"):
+			if heavy:
+				mod -= 3
+			else:
+				mod += 1.5
+		
+		return mod
+		
+	def calc_to_hit_bonus(self, mon, ranged=False):
+		mod = self.attack_accuracy(ranged)
 		
 		adv = 0
 		
@@ -233,11 +251,7 @@ class Player(Entity):
 		if not self.sees(mon):
 			mod -= 5
 	
-		if self.has_status("Reduced"):
-			if heavy:
-				mod -= 3
-			else:
-				mod += 1.5
+		
 			
 		if self.is_unarmed():
 			mod += 1
@@ -366,7 +380,7 @@ class Player(Entity):
 		if dam > 0:
 			self.set_hp(self.HP - dam)
 			self.interrupt()
-			if 0 < self.HP <= self.MAX_HP // 5:
+			if 0 < self.HP <= self.MAX_HP // 4:
 				self.add_msg(f"***LOW HP WARNING***", "bad")
 			if self.HP <= 0:
 				if self.debug_wizard and not g.confirm("Die?"):
@@ -412,6 +426,12 @@ class Player(Entity):
 		
 		att_roll = self.roll_to_hit(mon)
 		
+		mon_shield_bonus = 0
+		if mon.is_aware() and mon.shield:
+			self.add_msg("Defender is aware and using shield")
+			mon_shield_bonus = SHIELD_BONUS
+		
+		att_roll -= mon_shield_bonus
 		if att_roll >= 0:
 			mon.on_hit(self)
 			stat = self.STR
@@ -420,7 +440,7 @@ class Player(Entity):
 			damage = self.base_damage_roll() + div_rand(stat - 10, 2)
 			crit = False
 			if att_roll >= 5:
-				crit = one_in(10)
+				crit = one_in(9)
 			
 			if sneak_attack:
 				eff_level = self.xp_level
@@ -465,6 +485,8 @@ class Player(Entity):
 					self.add_msg(f"It has {mon.HP}/{mon.MAX_HP} HP.")
 				else:
 					self.on_defeat_monster(mon)
+		elif att_roll + mon_shield_bonus >= 0:
+			self.add_msg(f"{mon.get_name(True)} blocks your attack with its shield.")
 		else:
 			self.add_msg(f"Your attack misses {mon.get_name()}.")
 			
@@ -637,4 +659,51 @@ class Player(Entity):
 			return "large"
 		return "medium"
 		
-	 
+	def throw_item(self, item):
+		if not item.thrown:
+			return False
+			
+		g = self.g
+		board = g.get_board()
+			
+		monsters = list(self.visible_monsters())
+		short_range, long_range = item.thrown
+		
+		mons_in_range = [mon for mon in monsters if mon.pos.square_dist(self.pos) <= long_range]
+		
+		if not mons_in_range:
+			self.add_msg(f"You can't see any available targets within range.", "info")
+			return False
+		
+		mon = g.select_monster(mons_in_range, f"Throw the {item.name} at which monster?")
+		if not mon:
+			return None
+		
+		
+		proj = Projectile(accuracy=self.attack_accuracy(True), name=item.name, can_crit=True)
+		proj.short_range = short_range
+		proj.long_range = long_range
+		proj.dmg = item.damage
+		
+		stat = self.STR
+		if item.finesse:
+			stat = max(stat, self.DEX)
+		mod = div_rand(stat - 10, 2)
+		proj.dmg_mod += mod
+		
+		to_hit = proj.to_hit_prob(self, mon)
+		dist = mon.pos.square_dist(self.pos)
+		self.add_msg(f"Throwing: {item.name} ({to_hit:.1f}% to hit)")
+		if dist > short_range:
+			self.add_msg("Accuracy is reduced due to distance.", "warning")
+		
+		self.add_msg("Press Enter to throw, or any other key to cancel")
+		g.draw_board()
+		if g.getch() != 10:
+			return
+		
+		self.remove_from_inventory(item)
+		
+		self.shoot_projectile_at(mon.pos, proj)
+		board.place_item_at(proj.final_pos, item)
+		self.use_energy(100)

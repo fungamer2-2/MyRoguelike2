@@ -3,29 +3,12 @@ from random import randint as rng
 from itertools import accumulate
 
 def gen_stats():
-	points = 27
-	stats = [8] * 6
-	
-	ind = -1
-	while points > 0:
-		eligible = [i for i in range(6) if stats[i] < 15]	
-		if ind == -1:
-			ind = random.choice(eligible)
-		cost = 2 if stats[ind] >= 13 else 1
-		if cost == 2 and one_in(2):
-			ind = -1
-			continue
-		if points < cost:
-			ind = -1
-			continue
+	while True:
+		stats = [dice(3, 6) for _ in range(6)]
+		total = sum(stats)
 		
-		stats[ind] += 1
-		points -= cost
-		
-		if (stats[ind] >= 15 or (stats[ind] >= 13 and one_in(2))) or x_in_y(3, 5):
-			ind = -1
-			
-	return stats
+		if 50 <= total <= 90:
+			return stats
 	
 def rng_float(a, b):
 	if a > b:
@@ -105,6 +88,12 @@ def apply_armor(damage, armor):
 	prot = rng(0, 2 * armor)
 	return max(damage - prot, 0)
 	
+def calc_ranged_penalty(r, short, long):
+	if r <= short:
+		return 0.0
+	return 5 * (r - short) / (long - short)
+	
+	
 class WeightedList:
 	
 	def __init__(self):
@@ -133,7 +122,7 @@ class WeightedList:
 	
 class Dice:
 		
-	def __init__(self, num, sides, mod):
+	def __init__(self, num, sides, mod=0):
 		self.num = num
 		self.sides = sides
 		self.mod = mod
@@ -211,9 +200,9 @@ class Point:
 		delta = other - self
 		return abs(delta.x) + abs(delta.y)
 		
-	def circular_dist(self, other):
-		delta = other - self
-		return math.sqrt(delta.x**2 + delta.y**2)
+	def square_dist(self, other):
+		abs_d = abs(other - self)
+		return max(abs_d.x, abs_d.y)
 		
 def points_in_line(p1, p2, d=0):
 	x1 = p1.x

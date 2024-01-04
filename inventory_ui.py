@@ -34,13 +34,17 @@ def display_item(g, item):
 			
 		
 	use_text = "Use"
+	can_throw = False
 	if isinstance(item, Weapon):
 		use_text = "Wield"
+		can_throw = item.thrown != False
 	elif isinstance(item, Armor):
 		use_text = "Wear"
 	
 	menu.add_text(f"U - {use_text}")
 	menu.add_text("D - Drop")
+	if can_throw:
+		menu.add_text("T - Throw")
 	menu.add_text("Enter - cancel")
 	menu.display()
 	
@@ -55,6 +59,9 @@ def display_item(g, item):
 		elif chr(code) == "d":
 			player.drop_item(item)
 			return True
+		elif can_throw and chr(code) == "t":
+			player.throw_item(item)
+			return True	
 			
 def consolidate_inventory_display(player):
 	counts = {}

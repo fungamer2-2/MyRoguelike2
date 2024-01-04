@@ -172,6 +172,7 @@ class MonsterType(JSONObject):
 		obj.load_optional(d, "poison", False, (bool, dict))
 		obj.load_optional(d, "acid_strength", 0, int)
 		obj.load_optional(d, "weapon", None)
+		obj.load_optional(d, "shield", False, bool)
 		
 		if obj.poison != False:
 			if type(obj.poison) != dict:

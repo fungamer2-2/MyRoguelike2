@@ -177,7 +177,7 @@ class Entity(ABC):
 	def set_hp(self, HP):
 		self.HP = clamp(HP, 0, self.MAX_HP)
 		
-	def take_damage(self, dam):
+	def take_damage(self, dam, src=None):
 		if dam > 0:
 			self.set_hp(self.HP - dam)
 	
@@ -283,6 +283,9 @@ class Entity(ABC):
 			case "gargantuan":
 				mod = -4
 		ev = 10 + stat_mod(self.DEX)
+		
+		if self.is_monster() and not self.is_aware():
+			mod -= 5
 			
 		return ev + mod
 				
@@ -313,44 +316,39 @@ class Entity(ABC):
 			
 		target_creature = g.entity_at(target)
 		
+		dist = 0
+		proj.final_pos = self.pos
 		for pos in g.do_projectile(self.pos, target):
 			if not board.passable(pos):
 				break
-			
+			if dist > proj.long_range:
+				break
+				
+			proj.final_pos = pos
+			penalty = calc_ranged_penalty(dist, proj.short_range, proj.long_range)
 			
 			if (c := g.entity_at(pos)):
 				ev = c.ranged_evasion()
 				
 				if target_creature and target_creature is c:
-					margin = acc_roll - ev
+					margin = acc_roll - penalty - ev
 					
-					to_hit = gauss_roll_prob(proj.accuracy, ev)
-					
-					self.add_msg(f"To-hit: {to_hit:.2f}%")
 					if margin >= 0:
-						self.add_msg_if_u_see(c, f"The {proj.name} hits {c.get_name()}.") 
-						c.take_damage(dice(proj.dmg_dice, proj.dmg_sides), self)
-						if c.is_alive() and c.is_monster(): 
-							if c.is_player():
-								c.alerted()					
+						proj.on_hit(self, c, margin)				
 						break
 					else:
 						if not wild_miss:
 							self.add_msg_if_u_see(c, f"The {proj.name} misses {c.get_name()}.")
 						if c.is_monster() and one_in(2):
-							if c.is_player():
+							if self.is_player():
 								c.alerted()	
 							
 				else: #We may have hit an unintended target
 					unintended_hit = 15 - rng_float(0, acc_margin) - ev
 					if unintended_hit >= 0:			
-						self.add_msg_if_u_see(c, f"The {proj.name} hits {c.get_name()}.")
-						c.take_damage(dice(proj.dmg_dice, proj.dmg_sides), self)
-						if c.is_alive() and c.is_monster():
-							if c.is_player():
-								c.alerted()
+						proj.on_hit(self, c, 0)
 						break
 					elif one_in(2) and c.is_monster():
-						if c.is_player():
+						if self.is_player():
 							c.alerted()
 			
