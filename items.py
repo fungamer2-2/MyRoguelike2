@@ -16,6 +16,7 @@ class Item:
 		return 0
 		
 	def use(self, player):
+		self.add_msg("There isn't much of a use for your {item.name}.")
 		return ItemUseResult.NOT_USED
 		
 class Potion(Item):
@@ -207,8 +208,36 @@ class ThunderScroll(Scroll):
 			
 			
 		player.use_energy(100)
+	
+class ThrownItem(Item):
+	
+	def __init__(self, name):
+		super().__init__()
+		self.name = name
+		self.damage = Dice(1, 1)
+		self.finesse = False
+		self.thrown = [6, 18]
 		
+	def roll_damage(self):
+		return self.damage.roll()
 		
+	def use(self, player):
+		if player.throw_item(self):
+			return ItemUseResult.USED
+		return ItemUseResult.NOT_USED
+		
+class Dart(ThrownItem):
+	
+	def __init__(self):
+		super().__init__("dart")	
+		self.damage = Dice(1, 4)
+		self.finesse = True
+		self.symbol = ";"
+		
+	def display_color(self):
+		return curses.color_pair(COLOR_DODGER_BLUE2) | curses.A_REVERSE
+		
+
 class Weapon(Item):
 	description = "A weapon that can be used in combat."
 	
@@ -216,7 +245,7 @@ class Weapon(Item):
 		super().__init__()
 		self.type = None
 		self.name = "weapon"
-		self.damage = Dice(0, 0, 1)
+		self.damage = Dice(1, 1)
 		self.dmg_type = "bludgeon"
 		self.finesse = False
 		self.heavy = False 
@@ -252,7 +281,6 @@ class NullWeapon(Weapon):
 	def __init__(self):
 		super().__init__()
 		self.name = "unarmed"
-		self.damage = Dice(1, 1, 0)
 		
 	def roll_damage(self):
 		return 1 + one_in(3)

@@ -112,7 +112,6 @@ class Player(Entity):
 		amount = 100 * self.xp_level ** 1.5
 		return round(amount/10)*10
 		
-	
 	def inc_random_stat(self):
 		rand = rng(1, 6)
 		
@@ -428,7 +427,6 @@ class Player(Entity):
 		
 		mon_shield_bonus = 0
 		if mon.is_aware() and mon.shield:
-			self.add_msg("Defender is aware and using shield")
 			mon_shield_bonus = SHIELD_BONUS
 		
 		att_roll -= mon_shield_bonus
@@ -506,7 +504,7 @@ class Player(Entity):
 		
 	def on_defeat_monster(self, mon):
 		g = self.g
-		xp_gain = 15 * mon.get_diff_level()**1.7
+		xp_gain = 10 * mon.get_diff_level()**1.7
 		xp_gain = round(xp_gain/5)*5
 		self.gain_xp(xp_gain)
 		
@@ -677,8 +675,7 @@ class Player(Entity):
 		
 		mon = g.select_monster(mons_in_range, f"Throw the {item.name} at which monster?")
 		if not mon:
-			return None
-		
+			return False
 		
 		proj = Projectile(accuracy=self.attack_accuracy(True), name=item.name, can_crit=True)
 		proj.short_range = short_range
@@ -707,3 +704,5 @@ class Player(Entity):
 		self.shoot_projectile_at(mon.pos, proj)
 		board.place_item_at(proj.final_pos, item)
 		self.use_energy(100)
+		
+		return True

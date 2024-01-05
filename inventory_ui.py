@@ -38,13 +38,16 @@ def display_item(g, item):
 	if isinstance(item, Weapon):
 		use_text = "Wield"
 		can_throw = item.thrown != False
+	elif isinstance(item, ThrownItem):
+		can_throw = True
 	elif isinstance(item, Armor):
 		use_text = "Wear"
 	
 	menu.add_text(f"U - {use_text}")
-	menu.add_text("D - Drop")
 	if can_throw:
 		menu.add_text("T - Throw")
+	menu.add_text("D - Drop")
+	
 	menu.add_text("Enter - cancel")
 	menu.display()
 	

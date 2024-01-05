@@ -288,6 +288,9 @@ class Entity(ABC):
 			mod -= 5
 			
 		return ev + mod
+		
+	def apply_armor(self, dam):
+		return apply_armor(dam, self.get_armor())
 				
 	def shoot_projectile_at(self, target_pos, proj):
 		g = self.g

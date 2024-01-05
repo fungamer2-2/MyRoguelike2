@@ -37,11 +37,12 @@ class Projectile:
 			crit = one_in(9)
 		
 		damage = self.roll_damage(crit)
+		damage = defender.apply_armor(damage)
 		attacker.add_msg_if_u_see(defender, f"The {self.name} hits {defender.get_name()}.") 
-		if crit:
+		if damage > 0 and crit:
 			attacker.add_msg("Critical hit!", "good")
 		
 		defender.take_damage(damage, attacker)
-		if defende.is_alive() and defender.is_monster(): 
+		if defender.is_alive() and defender.is_monster(): 
 			if attacker.is_player():
 				attacker.alerted()		

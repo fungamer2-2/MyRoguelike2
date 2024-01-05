@@ -322,6 +322,12 @@ class Game:
 		if one_in(5):
 			pos = board.random_passable()
 			board.place_item_at(pos, Shield())
+			
+		if one_in(2):
+			for _ in range(triangular_roll(1, 9)):
+				if one_in(2):
+					pos = board.random_passable()	
+					board.place_item_at(pos, Dart())
 		
 	def place_monsters(self):
 		eligible_types = {}
