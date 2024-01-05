@@ -38,7 +38,11 @@ class Projectile:
 		
 		damage = self.roll_damage(crit)
 		damage = defender.apply_armor(damage)
-		attacker.add_msg_if_u_see(defender, f"The {self.name} hits {defender.get_name()}.") 
+		msg = f"The {self.name} hits {defender.get_name()}"
+		if attacker.is_player():
+			msg += " for {damage} damage"
+		msg += "."
+		attacker.add_msg_if_u_see(defender, msg) 
 		if damage > 0 and crit:
 			attacker.add_msg("Critical hit!", "good")
 		

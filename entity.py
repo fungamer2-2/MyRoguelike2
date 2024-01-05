@@ -324,6 +324,7 @@ class Entity(ABC):
 		for pos in g.do_projectile(self.pos, target):
 			if not board.passable(pos):
 				break
+			dist += 1
 			if dist > proj.long_range:
 				break
 				
@@ -354,4 +355,4 @@ class Entity(ABC):
 					elif one_in(2) and c.is_monster():
 						if self.is_player():
 							c.alerted()
-			
+		
