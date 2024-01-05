@@ -692,7 +692,7 @@ class Player(Entity):
 		dist = mon.pos.square_dist(self.pos)
 		self.add_msg(f"Throwing: {item.name} ({to_hit:.1f}% to hit)")
 		if dist > short_range:
-			self.add_msg("Accuracy is reduced due to distance.", "warning")
+			self.add_msg(f"Accuracy is reduced beyond {short_range}.", "warning")
 		
 		self.add_msg("Press Enter to throw, or any other key to cancel")
 		g.draw_board()
