@@ -215,6 +215,9 @@ class Entity(ABC):
 	def display_color(self):
 		return 0
 		
+	def is_aware(self):
+		return True
+		
 	def do_turn(self):
 		pass
 		
@@ -258,6 +261,11 @@ class Entity(ABC):
 		
 	def stealth_roll(self):
 		return gauss_roll(self.stealth_mod())
+		
+	def get_perception(self):	
+		per_mod = stat_mod(self.WIS)
+		perception = 10 + per_mod
+		return perception
 		
 	def tick_status_effects(self, amount):
 		for name in list(self.status.keys()):

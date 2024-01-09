@@ -175,6 +175,9 @@ class Monster(Entity):
 				self.set_target(noise.pos)
 				self.soundf = duration
 				
+	def get_perception(self):
+		return super().get_perception() + self.get_skill("perception")
+				
 	def check_alerted(self):
 		if one_in(70):
 			return True
@@ -185,7 +188,7 @@ class Monster(Entity):
 		dist = self.distance(player)
 		
 		per_mod = stat_mod(self.WIS)
-		perception = 10 + per_mod
+		perception = self.get_perception()
 		range = self.type.blindsight_range
 		if dist <= range:
 			perception += 5
@@ -194,7 +197,6 @@ class Monster(Entity):
 			#Player is invisible
 			perception -= 5
 			
-		perception += self.get_skill("perception")
 		
 		stealth_roll = player.stealth_roll()
 		
@@ -420,9 +422,11 @@ class Monster(Entity):
 		self.use_energy(1000)
 		self.add_msg_if_u_see(self, f"{self.get_name(True)} dies!", "good")
 		board.erase_collision_cache(self.pos)
-		if self.weapon and one_in(3):
+		if self.weapon and one_in(4):
 			board.place_item_at(self.pos, self.weapon)
-		
+		if self.shield and one_in(4):
+			board.place_item_at(self.pos, Shield())
+			
 	def is_aware(self):
 		return self.state in ["AWARE", "TRACKING"]
 		
@@ -561,6 +565,8 @@ class Monster(Entity):
 					if acid > 0:
 						c.hit_with_acid(acid)
 		elif u_see_attacker:
+			if c.is_player() and c.has_status("Foresight") and one_in(3): #No need to tell them every time
+				self.add_msg(f"You anticipate {self.get_name()}'s attack and instinctively avoid it!", "good")
 			defender = c.get_name() if u_see_defender else "something"
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {defender}.")
 		
@@ -596,6 +602,17 @@ class Monster(Entity):
 						c.add_status("Paralyzed", rng(1, 5))
 						paralyzed = True			
 					c.add_status("Slowed", rng(dmg, dmg*4), paralyzed)
+	
+	def add_status(self, name, dur, silent=False):
+		super().add_status(name, dur)
+		
+		g = self.g
+		if not silent:
+			eff_type = g.get_effect_type(name)
+			if self.has_status(name):
+				self.add_msg_if_u_see(self, eff_type.mon_extend_msg)	
+			else:
+				self.add_msg_if_u_see(self, eff_type.mon_apply_msg)							
 									
 	def random_guess_invis(self):
 		g = self.g
@@ -603,7 +620,7 @@ class Monster(Entity):
 		chance = 1
 		target = None
 		for pos in board.points_in_radius(self.pos, 3):
-			if self.sees_pos(pos) and one_in(chance):
+			if board.has_clear_path_to(self.pos, pos) and one_in(chance):
 				chance += 1
 				target = pos
 		if target:
@@ -635,8 +652,7 @@ class Monster(Entity):
 				if not self.is_ally(mon):
 					continue
 				
-				if not one_in(3):
-					self.set_state("AWARE")
+				self.set_state("AWARE")
 	
 	def move(self):
 		g = self.g

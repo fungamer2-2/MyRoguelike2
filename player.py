@@ -1,7 +1,7 @@
 from entity import Entity
 from utils import *
 from const import *
-from items import UNARMED
+from items import *
 from collections import deque
 import math
 
@@ -49,16 +49,26 @@ class Player(Entity):
 		if not self.is_alive():
 			bonus = 0
 		else:
+			foresight = self.has_status("Foresight")
 			if self.has_status("Hasted"):
 				bonus += 2
+				
+			if foresight:
+				bonus += 2.5
 			if self.has_status("Enlarged"):
 				bonus *= 0.7
 			elif self.has_status("Reduced"):
 				bonus *= 1.3
 				
 			bonus *= self.encumb_ev_mult() 
+			if foresight:
+				#Split the bonus from foresight into half the bonus applied before armor encumbrance, and the other half applied after
+				bonus += 2.5
 			
 		return bonus + 5
+		
+	def ranged_evasion(self):
+		return self.calc_evasion()
 		
 	def add_to_inventory(self, item):
 		self.inventory.append(item)
@@ -112,31 +122,73 @@ class Player(Entity):
 		amount = 100 * self.xp_level ** 1.5
 		return round(amount/10)*10
 		
-	def inc_random_stat(self):
-		rand = rng(1, 6)
-		
-		match rand:
-			case 1:
+	def inc_stat(self, name):
+		msg = ""
+		match name:
+			case "STR":
 				self.STR += 1
 				msg = "You feel stronger."
-			case 2:
+			case "DEX":
 				self.DEX += 1
 				msg = "You feel more agile."
-			case 3:
+			case "CON":
 				self.CON += 1
 				self.recalc_max_hp()
 				msg = "You feel your physical endurance improve."
-			case 4:
+			case "INT":
 				self.INT += 1
 				msg = "You feel more intelligent."
-			case 5:
+			case "WIS":
 				self.WIS += 1
 				msg = "You feel wiser."
-			case 6:
+			case "CHA":
 				self.CHA += 1
 				msg = "You feel more charismatic."
 			
 		self.add_msg(msg, "good")
+		
+	def get_stat_increase_candidates(self):
+		stats = []
+		if self.STR < 20:
+			stats.append("STR")
+		if self.DEX < 20:
+			stats.append("DEX")
+		if self.CON < 20:
+			stats.append("CON")
+		if self.INT < 20:
+			stats.append("INT")
+		if self.WIS < 20:
+			stats.append("WIS")
+		if self.CHA < 20:
+			stats.append("CHA")
+		return stats
+		
+		
+	def inc_random_stat(self):
+		stats = self.get_stat_increase_candidates()
+		
+		if stats:
+			self.inc_stat(random.choice(stats))
+	
+	def inc_stat_prompt(self):
+		stats = self.get_stat_increase_candidates()
+		
+		if stats:
+			g = self.g
+			if len(stats) == 1:
+				self.inc_stat(stats[0])
+			else:
+				msg = "Increase which stat? "	
+				msg += ", ".join(f"{i+1} - {stat}" for i, stat in enumerate(stats))
+				msg += " (Enter the number corresponding to the stat)"
+				while True:
+					num = g.input_int(msg)
+					if 1 <= num <= len(stats):
+						self.inc_stat(stats[num-1])
+						break
+					else:
+						self.add_msg(f"Please enter a number from 1 to {len(stats)}")
+					
 		
 	def gain_xp(self, amount):
 		self.xp += amount
@@ -153,20 +205,31 @@ class Player(Entity):
 		if old_level != self.xp_level:
 			
 			self.add_msg(f"You have reached experience level {self.xp_level}!", "good")
-			for _ in range(num*2):
+			for _ in range(num):
 				self.inc_random_stat()
+			for _ in range(num):
+				self.inc_stat_prompt()
 				
 	def calc_fov(self):
 		g = self.g
 		board = g.get_board()
 		self.fov = board.get_fov(self.pos)
 		
+	def is_aware(self):
+		return not self.resting
+		
 	def can_rest(self):
 		if self.HP >= self.MAX_HP:
 			return False
+		g = self.g
 		num_visible = 0
+		foresight = self.has_status("Foresight")
 		for mon in self.visible_monsters():
-			num_visible += 1
+			perceived = True
+			if not foresight and self.is_resting:
+				perceived = one_in(2) and mon.stealth_roll() >= self.get_perception()
+				
+			num_visible += perceived	
 			
 		if num_visible > 0:
 			if num_visible == 1:
@@ -194,7 +257,7 @@ class Player(Entity):
 		
 	def visible_monsters(self):
 		g = self.g
-		for m in g.monsters:
+		for m in g.get_monsters():
 			if self.sees(m):
 				yield m
 				
@@ -245,6 +308,8 @@ class Player(Entity):
 		if not mon.is_aware():
 			adv += 1
 		if not mon.sees(self):
+			adv += 1
+		if self.has_status("Foresight"):
 			adv += 1
 			
 		if not self.sees(mon):
@@ -641,9 +706,6 @@ class Player(Entity):
 			
 		return stealth		
 				
-	def stealth_roll(self):
-		return gauss_roll(self.stealth_mod())
-		
 	def get_armor(self):
 		if self.armor:
 			armor = self.armor
@@ -702,7 +764,13 @@ class Player(Entity):
 		self.remove_from_inventory(item)
 		
 		self.shoot_projectile_at(mon.pos, proj)
-		board.place_item_at(proj.final_pos, item)
+		
+		destroy_chance = 10 if isinstance(item, Weapon) else 6
+		if isinstance(item, ThrownItem):
+			destroy_chance = item.destroy_chance
+			
+		if not one_in(destroy_chance):
+			board.place_item_at(proj.final_pos, item)
 		self.use_energy(100)
 		
 		return True

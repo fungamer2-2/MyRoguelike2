@@ -265,7 +265,8 @@ class Game:
 			[HealingPotion, 130],
 			[EnlargementPotion, 20],
 			[ShrinkingPotion, 20],
-			[SpeedPotion, 30]
+			[SpeedPotion, 30],
+			[ForesightPotion, 15]
 		]
 		
 		for _ in range(rng(1, 5)):
@@ -323,11 +324,10 @@ class Game:
 			pos = board.random_passable()
 			board.place_item_at(pos, Shield())
 			
-		if one_in(2):
-			for _ in range(triangular_roll(1, 9)):
-				if one_in(2):
-					pos = board.random_passable()	
-					board.place_item_at(pos, Dart())
+		num = rng(0, rng(0, 9))
+		for _ in range(num):
+			pos = board.random_passable()	
+			board.place_item_at(pos, Dart())
 		
 	def place_monsters(self):
 		eligible_types = {}
@@ -486,7 +486,6 @@ class Game:
 		player = self.get_player()
 		used = player.energy_used
 		
-		
 		if used <= 0:
 			return
 			
@@ -500,7 +499,9 @@ class Game:
 		
 		self.subtick_timer += used
 		player.energy += used
-		for m in self.monsters:		
+		
+		monsters = self.get_monsters()
+		for m in monsters:		
 			m.energy += used	
 		
 		self.process_noise_events()	
@@ -509,12 +510,12 @@ class Game:
 			self.subtick_timer -= 100
 			self.tick += 1
 			player.tick()
-			for m in self.monsters:
+			for m in monsters:
 				if m.is_alive():
 					m.tick()
 					
 		
-		remaining = self.monsters.copy()
+		remaining = monsters.copy()
 		random.shuffle(remaining)
 		remaining.sort(key=lambda m: m.energy, reverse=True)
 		

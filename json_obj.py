@@ -135,7 +135,20 @@ class Poison(JSONObject):
 		obj.load_required(d, "potency", int)
 		obj.load_optional(d, "slowing", False, bool)
 		return obj
-
+		
+class AttackType(JSONObject):
+	
+	def load(cls, d):
+		obj = cls()
+		obj.load_required(d, "name", str)
+		obj.load_required(d, "attack_cost", 100)
+		
+		obj.load_optional(d, "use_dex", False, bool)
+		obj.load_optional(d, "reach", 1, int)
+		
+		dam = obj.get_required(d, "base_damage", str)
+		obj.set_field("base_damage", Dice(*parse_dice(dam)))
+		
 
 speed_names = ["tiny", "small", "medium", "large", "huge", "gargantuan"]		
 

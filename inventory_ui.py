@@ -7,6 +7,8 @@ def item_display_name(player, item):
 	
 	if item is player.armor:
 		name += " (worn)"
+	elif item is player.weapon:
+		name += " (wielded)"
 	return name
 
 def display_item(g, item):
@@ -31,7 +33,8 @@ def display_item(g, item):
 			menu.add_text("This is a finesse weapon.")
 		if item.heavy:
 			menu.add_text("This weapon is heavy; attacking with it takes a bit longer.")
-			
+	
+	
 		
 	use_text = "Use"
 	can_throw = False
@@ -40,6 +43,7 @@ def display_item(g, item):
 		can_throw = item.thrown != False
 	elif isinstance(item, ThrownItem):
 		can_throw = True
+		
 	elif isinstance(item, Armor):
 		use_text = "Wear"
 	

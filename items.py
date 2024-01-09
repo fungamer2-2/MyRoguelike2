@@ -90,7 +90,7 @@ class ShrinkingPotion(Potion):
 		return ItemUseResult.CONSUMED
 		
 class SpeedPotion(Potion):
-	description = "A potion with a blue liquid that appears to have a slight glow. When consed, it grants a temporary speed boost."
+	description = "A potion with a blue liquid that appears to have a slight glow. When consumed, it grants a temporary speed boost."
 	
 	def __init__(self):
 		super().__init__()
@@ -127,6 +127,26 @@ class InvisibilityPotion(Potion):
 			dur = rng(60, 100)
 		player.use_energy(100)		
 		player.add_status("Invisible", dur)	
+		return ItemUseResult.CONSUMED
+		
+class ForesightPotion(Potion):
+	description = "A potion with a clear liquid that appears to glow cyan when agitated. Anyone who drinks it gains the ability to see a few seconds into the future for a short duration, allowing you to anticipate your enemies' actions."
+	
+	def __init__(self):
+		super().__init__()
+		self.name = "foresight potion"
+		
+	def display_color(self):
+		return curses.color_pair(COLOR_CYAN)
+			
+	def use(self, player):
+		player.add_msg("You drink the foresight potion.")
+		if player.has_status("Foresight"):
+			dur = rng(15, 40)
+		else:
+			dur = rng(30, 80)
+		player.use_energy(100)		
+		player.add_status("Foresight", dur)	
 		return ItemUseResult.CONSUMED
 		
 class Scroll(Item):
@@ -217,6 +237,7 @@ class ThrownItem(Item):
 		self.damage = Dice(1, 1)
 		self.finesse = False
 		self.thrown = [6, 18]
+		self.destroy_chance = 6
 		
 	def roll_damage(self):
 		return self.damage.roll()
@@ -233,6 +254,8 @@ class Dart(ThrownItem):
 		self.damage = Dice(1, 4)
 		self.finesse = True
 		self.symbol = ";"
+		self.destroy_chance = 3
+		
 		
 	def display_color(self):
 		return curses.color_pair(COLOR_DODGER_BLUE2) | curses.A_REVERSE

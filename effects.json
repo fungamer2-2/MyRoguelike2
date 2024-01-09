@@ -1,10 +1,10 @@
 [
 	{
-	  "name": "Hasted",
-	  "type": "good",
-	  "apply_msg": "You feel your movements speed up as time appears to slow down.",
-	  "extend_msg": "You feel that your speed will last longer.",
-	  "remove_msg": "You feel yourself slow down to normal speed."
+		"name": "Hasted",
+		"type": "good",
+		"apply_msg": "You feel your movements speed up as time appears to slow down.",
+		"extend_msg": "You feel that your speed will last longer.",
+		"remove_msg": "You feel yourself slow down to normal speed."
 	},
 	{
 		"name": "Slowed",
@@ -47,6 +47,13 @@
 		"remove_msg": "Your fade into view once again.",
 		"mon_apply_msg": "<monster> fades out of view!",
 		"mon_remove_msg": "<monster> reappears!"
+	},
+	{
+		"name": "Foresight",
+		"type": "good",
+		"apply_msg": "You suddenly feel like you can see what's just about to happen.",
+		"extend_msg": "You feel even more perceptive about the near future.",
+		"remove_msg": "You no longer feel as certain about what's about to happen."
 	}
 	
 ]

@@ -40,7 +40,7 @@ class Projectile:
 		damage = defender.apply_armor(damage)
 		msg = f"The {self.name} hits {defender.get_name()}"
 		if attacker.is_player():
-			msg += " for {damage} damage"
+			msg += f" for {damage} damage"
 		msg += "."
 		attacker.add_msg_if_u_see(defender, msg) 
 		if damage > 0 and crit:
@@ -49,4 +49,4 @@ class Projectile:
 		defender.take_damage(damage, attacker)
 		if defender.is_alive() and defender.is_monster(): 
 			if attacker.is_player():
-				attacker.alerted()		
+				defender.alerted()		
