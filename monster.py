@@ -26,7 +26,7 @@ class Monster(Entity):
 		self.shield = False
 		self.type = None
 		self.bat_tick = 0
-		self.energy = rng(-100, 100)
+		self.energy = rng(-100, 50)
 		
 	def is_monster(self):
 		return True
@@ -527,6 +527,10 @@ class Monster(Entity):
 		
 	def get_acid_strength(self):
 		return self.type.acid_strength
+		
+	def get_attacks(self):
+		return self.type.attacks
+			
 			
 	def attack_pos(self, pos):
 		g = self.g
@@ -534,6 +538,8 @@ class Monster(Entity):
 		player = g.get_player()
 		if not (c := g.entity_at(pos)):
 			return False
+		
+		attack_list = self.get_attacks()
 		
 		att_roll = self.roll_to_hit(c)
 		u_see_attacker = player.sees(self)

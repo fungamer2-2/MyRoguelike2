@@ -136,8 +136,9 @@ class Poison(JSONObject):
 		obj.load_optional(d, "slowing", False, bool)
 		return obj
 		
-class AttackType(JSONObject):
+class MeleeAttackType(JSONObject):
 	
+	@classmethod
 	def load(cls, d):
 		obj = cls()
 		obj.load_required(d, "name", str)
@@ -187,6 +188,11 @@ class MonsterType(JSONObject):
 		obj.load_optional(d, "weapon", None)
 		obj.load_optional(d, "shield", False, bool)
 		
+		obj.load_required(d, "attacks", list)
+		
+		for i, typ in enumerate(obj.attacks):
+			obj.attacks[i] = AttackType.load(typ)	
+		
 		if obj.poison != False:
 			if type(obj.poison) != dict:
 				raise TypeError("poison field must be a dict or False")
@@ -219,9 +225,15 @@ class WeaponType(JSONObject):
 		obj.load_required(d, "symbol", str),
 		obj.load_required(d, "damage_type", str),
 		
-		obj.load_optional(d, "finesse", False, bool)
-		obj.load_optional(d, "heavy", False, bool)
-		obj.load_optional(d, "thrown", False, (bool, list))
+		ranged = obj.get_optional(d, "ranged", False, (bool, list))
+		if ranged:
+			pass
+		else:
+			obj.load_optional(d, "finesse", False, bool)
+			obj.load_optional(d, "heavy", False, bool)
+			obj.load_optional(d, "thrown", False, (bool, list))
+		
+		obj.load_optional(d, "two_handed", False, bool)
 		
 		dam = obj.get_required(d, "base_damage", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))

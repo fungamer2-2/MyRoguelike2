@@ -274,6 +274,9 @@ class Weapon(Item):
 		self.heavy = False 
 		self.thrown = False
 		
+	def is_two_handed(self):
+		return self.type.two_handed
+		
 	def roll_damage(self):
 		return self.damage.roll()
 		
@@ -294,6 +297,10 @@ class Weapon(Item):
 		return obj
 		
 	def use(self, player):
+		if player.shield and self.is_two_handed():
+			player.add_msg("You can't wield a two-handed weapon while holding a shield.")
+			return ItemUseResult.NOT_USED
+			
 		player.add_msg(f"You wield a {self.name}.")
 		player.use_energy(100)
 		player.weapon = self
@@ -354,8 +361,25 @@ class Shield(Item):
 		return curses.color_pair(COLOR_DODGER_BLUE2)
 		
 	def use(self, player):
-		#TODO: Forbid using shields with two-handed weapons
+		if player.weapon.is_two_handed():
+			player.add_msg("You can't equip a shield while wielding a two-handed weapon.")
+			return ItemUseResult.NOT_USED
+			
 		player.add_msg("You equip a shield.")
 		player.use_energy(150)
 		player.shield = self
 		return ItemUseResult.USED
+		
+class Ammunition(Item):
+	description = "Ammunition for a ranged weapon."
+	def __init__(self):
+		super().__init__()
+		self.name = "ammo"
+		self.symbol = "i"
+		
+	def display_color(self):
+		return curses.color_pair(COLOR_CYAN)
+		
+	def use(self, player):
+		player.add_msg("This ammunition is designed for use wirh ranged weapons.")
+		return ItemUseResult.NOT_USED

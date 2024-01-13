@@ -20,7 +20,8 @@
 		"name": "greatclub",
 		"symbol": "P",
 		"base_damage": "1d8",
-		"damage_type": "bludgeon"
+		"damage_type": "bludgeon",
+		"two_handed": true
 	},
 	{
 		"id": "handaxe",
@@ -51,7 +52,8 @@
 		"symbol": "Y",
 		"base_damage": "1d12",
 		"damage_type": "slash",
-		"heavy": true
+		"heavy": true,
+		"two_handed": true
 	},
 	{
 		"id": "greatsword",
@@ -59,7 +61,8 @@
 		"symbol": "j",
 		"base_damage": "2d6",
 		"damage_type": "slash",
-		"heavy": true
+		"heavy": true,
+		"two_handed": true
 	},
 	{
 		"id": "trident",

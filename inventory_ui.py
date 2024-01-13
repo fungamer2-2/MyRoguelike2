@@ -33,7 +33,8 @@ def display_item(g, item):
 			menu.add_text("This is a finesse weapon.")
 		if item.heavy:
 			menu.add_text("This weapon is heavy; attacking with it takes a bit longer.")
-	
+		if item.is_two_handed():
+			menu.add_text("This weapon requires two hands to wield.")
 	
 		
 	use_text = "Use"

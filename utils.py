@@ -3,11 +3,22 @@ from random import randint as rng
 from itertools import accumulate
 
 def gen_stats():
+	stats = [rng(10, 11) for _ in range(6)]
 	while True:
-		stats = [dice(3, 6) for _ in range(6)]
-		total = sum(stats)
+		ind1 = rng(0, 5)
+		ind2 = rng(0, 5)
+		if ind1 == ind2:
+			continue
+		if not rng(5, 9) <= stats[ind1] <= rng(11, 15):
+			continue
+		if not rng(5, 9) <= stats[ind2] <= rng(11, 15):
+			continue
 		
-		if 50 <= total <= 90:
+		if not one_in(7):
+			stats[ind1] -= 1
+		if not one_in(7):
+			stats[ind2] += 1
+		if one_in(50):
 			return stats
 	
 def rng_float(a, b):

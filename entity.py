@@ -223,11 +223,8 @@ class Entity(ABC):
 		
 	def make_noise(self, volume):
 		g = self.g
-		g.add_noise_event(self.pos, volume, self)
-		
-	def roll_wisdom(self):
-		return gauss_roll(stat_mod(self.WIS))
-		
+		g.add_noise_event(self.pos, volume, self)	
+	
 	def acid_resist(self):
 		#Resistance to acid
 		# -1 is vulnerable, +1 is resistant, +2 is immune
@@ -255,18 +252,28 @@ class Entity(ABC):
 		severity = " terribly" if res < 0 else ""
 		self.add_msg_u_or_mons(f"The acid burns you{severity}!", f"{self.get_name(True)} is burned{severity} by the acid!", typ)
 		self.take_damage(dam)
+			
+	def dex_mod(self):
+		return stat_mod(self.DEX)
 		
+	def wis_mod(self):
+		return stat_mod(self.WIS)
+				
 	def stealth_mod(self):
-		return stat_mod(self.DEX)	
+		return self.dex_mod()
+		
+	def roll_wisdom(self):
+		return gauss_roll(stat_mod(self.WIS))
 		
 	def stealth_roll(self):
 		return gauss_roll(self.stealth_mod())
 		
-	def get_perception(self):	
-		per_mod = stat_mod(self.WIS)
-		perception = 10 + per_mod
-		return perception
-		
+	def dex_mod(self):
+		return stat_mod(self.DEX)	
+	
+	def get_perception(self):
+		return 10 + self.wis_mod()
+	
 	def tick_status_effects(self, amount):
 		for name in list(self.status.keys()):
 			self.status[name] -= amount
@@ -290,7 +297,7 @@ class Entity(ABC):
 				mod = -2
 			case "gargantuan":
 				mod = -4
-		ev = 10 + stat_mod(self.DEX)
+		ev = 10 + self.dex_mod()
 		
 		if self.is_monster() and not self.is_aware():
 			mod -= 5

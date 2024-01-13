@@ -166,7 +166,6 @@ class Player(Entity):
 		
 	def inc_random_stat(self):
 		stats = self.get_stat_increase_candidates()
-		
 		if stats:
 			self.inc_stat(random.choice(stats))
 	
@@ -227,7 +226,7 @@ class Player(Entity):
 		for mon in self.visible_monsters():
 			perceived = True
 			if not foresight and self.is_resting:
-				perceived = one_in(2) and mon.stealth_roll() >= self.get_perception()
+				perceived = mon.stealth_roll() >= self.get_perception()
 				
 			num_visible += perceived	
 			
@@ -315,8 +314,6 @@ class Player(Entity):
 		if not self.sees(mon):
 			mod -= 5
 	
-		
-			
 		if self.is_unarmed():
 			mod += 1
 			

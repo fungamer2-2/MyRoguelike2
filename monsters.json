@@ -40,7 +40,7 @@
 		"size": "tiny",
 		"speed": 130,
 		"attack_msg": "<monster> claws <target>",
-		"skills": { "perception": 3 },
+		"skills": { "perception": 1 },
 		"flags": [ "SEES" ]	
 	},
 	{
@@ -82,7 +82,7 @@
 		"speed": 135,
 		"base_damage": "1d4",
 		"attack_msg": "<monster> bites <target>",
-		"skills": { "perception": 3 },
+		"skills": { "perception": 1 },
 		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ]
 	},
 	{
@@ -259,7 +259,7 @@
 		"diff": 5,
 		"speed": 100,
 		"base_damage": "2d6",
-		"skills": { "perception": 3 },
+		"skills": { "perception": 2 },
 		"attack_msg": "<monster> bites <target>",
 		"flags": [ "SEES", "KEEN_HEARING", "PACK_TRAVEL", "PACK_TACTICS" ]
 	}

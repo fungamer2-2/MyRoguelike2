@@ -407,9 +407,12 @@ class Game:
 		self.window_init = False
 	
 	def init_player(self):
+		board = self.get_board()
 		player = self.get_player()	
 		self.place_player()
 		player.recalc_max_hp()
+		
+		board.player = player
 		
 	def place_player(self):
 		board = self.get_board()
@@ -829,8 +832,10 @@ class Game:
 				self.add_message("HP restored.", "good")
 				player.is_resting = False
 				self.save()
-			else:
+			elif player.can_rest():
 				player.use_energy(100)
+			else:
+				player.interrupt()
 			return True
 			
 		if player.has_status("Paralyzed"):

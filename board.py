@@ -42,14 +42,17 @@ class Board:
 		self.los_cache = [[{} for i in range(width)] for j in range(height)]	
 		self.field_map = {}
 		self.recalc_sight = False
+		self.player = None
 		
 	def field_at(self, pos):
 		return self.field_map.get(pos)
 		
 	def remove_field(self, pos):
+		player = self.player
 		if pos in self.field_map:
 			del self.field_map[pos]
-			self.recalc_sight = True
+			if player.sees_pos(pos):
+				self.recalc_sight = True
 		
 	def tick_fields(self, subt):
 		for pos in list(self.field_map.keys()):
@@ -60,8 +63,10 @@ class Board:
 					
 		
 	def add_field(self, pos, name):
+		player = self.player
 		self.put_field(pos, fields[name]())
-		self.recalc_sight = True
+		if player.sees_pos(pos):
+			self.recalc_sight = True
 		
 	def set_field(self, pos, radius, name):
 		#Perform a flood fill out to radius. This allows it to go around corners, but not through walls
