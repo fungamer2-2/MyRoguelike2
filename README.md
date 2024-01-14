@@ -7,14 +7,7 @@ Required Python version: 3.11
 This is a terminal-based roguelike game in Python.
 It entirely uses the CLI interface.
 
-![image](./images/image.png)
+The game controls can be found in-game.
 
-## Controls
-`wasd` - move around<br />
-`SPACE` - wait a turn<br />
-`i` - open inventory menu<br />
-`p` - pickup item at current position<br />
-`r` - rest until HP is restored<br />
-`v` - view info of any monster in FOV<br />
-`>` - (only when on a stair tile) proceed downward to the next level<br />
+![image](./images/image.png)
 
