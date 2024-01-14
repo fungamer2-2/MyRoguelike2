@@ -1,8 +1,6 @@
 # MyRoguelike2
-**NOTE: This is still a work in progress**
 
 Game version: `0.15.0`<br />
-
 
 This is a terminal-based roguelike game in Python.
 It entirely uses the CLI interface.
