@@ -188,7 +188,7 @@ class MonsterType(JSONObject):
 		obj.load_optional(d, "weapon", None)
 		obj.load_optional(d, "shield", False, bool)
 		
-		obj.load_required(d, "attacks", list)
+		obj.load_optional(d, "attacks", [], list)
 		
 		for i, typ in enumerate(obj.attacks):
 			obj.attacks[i] = AttackType.load(typ)	

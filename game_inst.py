@@ -73,6 +73,9 @@ class Game:
 			t.start()
 		
 	def save(self):
+		player = self.get_player()
+		if not player.is_alive():
+			return
 		try:
 			saved_data = pickle.dumps(self)	
 		except:
@@ -177,7 +180,7 @@ class Game:
 		if not self.check_saved_game():
 			self.init_player()
 			self.generate_level()
-		
+			self.add_message("Welcome to the Dungeon Roguelike game! Press '?' to view controls.")
 		
 		
 	def confirm_load_save(self):
@@ -882,8 +885,28 @@ class Game:
 				self.save()
 				self.deinit_window()
 				exit()
+		elif char == "?":
+			self.help_menu()
 			
 		return False
+		
+	def help_menu(self):
+		menu = GameTextMenu(self)
+		menu.add_text("Help Menu")
+		menu.add_line()
+		menu.add_text("wasd keys - Move around")
+		menu.add_text("> - Descend stairs")
+		menu.add_text("r - rest and recover HP")
+		menu.add_text("v - view info of nearby monsters")
+		menu.add_text("p - pick up item")
+		menu.add_text("i - open inventory menu")
+		menu.add_text("SPACE - wait 1 turn")
+		menu.add_text("Q - Quits and saves the game")
+		menu.add_text("? - Shows this menu again")
+		menu.add_line()
+		menu.add_text("Press Enter to close this menu")
+		menu.display()
+		menu.wait_for_enter()
 		
 	def select_monster(self, monsters, prompt):
 		monsters = monsters.copy()
