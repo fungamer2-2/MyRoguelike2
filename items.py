@@ -236,7 +236,7 @@ class ThrownItem(Item):
 		self.name = name
 		self.damage = Dice(1, 1)
 		self.finesse = False
-		self.thrown = [6, 18]
+		self.thrown = [5, 15]
 		self.destroy_chance = 6
 		
 	def roll_damage(self):

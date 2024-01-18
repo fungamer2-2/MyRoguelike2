@@ -142,15 +142,16 @@ class MeleeAttackType(JSONObject):
 	def load(cls, d):
 		obj = cls()
 		obj.load_required(d, "name", str)
-		obj.load_required(d, "attack_cost", 100)
+		obj.load_optional(d, "attack_cost", 100, int)
 		
 		obj.load_optional(d, "use_dex", False, bool)
 		obj.load_optional(d, "reach", 1, int)
+		obj.load_optional(d, "attack_msg", "<monster> hits <target>", str)
 		
 		dam = obj.get_required(d, "base_damage", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		
-
+		return obj
 speed_names = ["tiny", "small", "medium", "large", "huge", "gargantuan"]		
 
 class MonsterType(JSONObject):
@@ -174,13 +175,11 @@ class MonsterType(JSONObject):
 		obj.load_optional(d, "armor", 0, int)
 		obj.load_optional(d, "speed", 100, int)
 		obj.load_optional(d, "size", "medium", str)
-		obj.load_optional(d, "attack_msg", "<monster> attacks <target>", str)
+		
 		obj.load_optional(d, "use_dex_melee", False, bool)
 		obj.load_optional(d, "flags", [])
 		obj.load_optional(d, "skills", {}, dict)
 		obj.load_optional(d, "reach", 1, int)
-		dam = obj.get_optional(d, "base_damage", "0", str)
-		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		
 		obj.load_optional(d, "blindsight_range", 0, int)
 		obj.load_optional(d, "poison", False, (bool, dict))
@@ -191,7 +190,7 @@ class MonsterType(JSONObject):
 		obj.load_optional(d, "attacks", [], list)
 		
 		for i, typ in enumerate(obj.attacks):
-			obj.attacks[i] = AttackType.load(typ)	
+			obj.attacks[i] = MeleeAttackType.load(typ)	
 		
 		if obj.poison != False:
 			if type(obj.poison) != dict:

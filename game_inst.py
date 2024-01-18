@@ -7,7 +7,6 @@ from entity import Entity
 from monster import Monster
 from player import Player
 from threading import Thread
-
 from messages import MessageLog
 from noise_event import NoiseEvent
 from utils import *
@@ -67,11 +66,9 @@ class Game:
 		
 	def autosave(self):
 		time_diff = time.time() - self.last_save_time
-		if time_diff >= 2:
-			self.last_save_time = time.time()
-			t = Thread(target=self.save)
-			t.start()
-		
+		if time_diff >= 1:
+			Thread(target=self.save).start()
+			
 	def save(self):
 		player = self.get_player()
 		if not player.is_alive():
@@ -1025,16 +1022,32 @@ class Game:
 		if player.shield:
 			player_ev += SHIELD_BONUS
 		if monster.shield:
+			info.add_line("This monster has a shield.")
 			mon_ev += SHIELD_BONUS
 		
 		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), mon_ev)
-		monster_to_hit = gauss_roll_prob(monster.calc_to_hit_bonus(player), player_ev)
-		
 		player_to_hit = player_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
+
+		
+		monster_to_hit = gauss_roll_prob(monster.calc_to_hit_bonus(player), player_ev)	
 		monster_to_hit = monster_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
 		
 		info.add_line(f"Your attacks have a {player_to_hit:.1f}% probability to hit this creature.")
-		info.add_line(f"Its attacks have a {monster_to_hit:.1f}% probability to hit you.")
+		
+		if (attacks := monster.get_attacks()):
+			info.add_line("It has the following attacks:")
+			for att in attacks:
+				monster_to_hit = gauss_roll_prob(monster.get_to_hit(player, att), player_ev)
+				dmgdice = att.base_damage
+				if dmgdice.num == 0:
+					dmg = str(dmgdice.mod)
+				else:
+					dmg = f"{dmgdice.num}d{dmgdice.sides}"
+					stat = monster.DEX if att.use_dex else monster.STR
+					mod = math.ceil((stat - 10)/2)
+					if mod != 0:
+						dmg += f"+{mod}" if mod > 0 else str(mod)
+				info.add_line(f"{att.name} - {dmg} damage, {monster_to_hit:.1f}% to hit you")
 		info.show()
 		self.getch()
 		

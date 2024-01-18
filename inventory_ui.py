@@ -9,6 +9,8 @@ def item_display_name(player, item):
 		name += " (worn)"
 	elif item is player.weapon:
 		name += " (wielded)"
+	elif item is player.shield:
+		name += " (equipped)"
 	return name
 
 def display_item(g, item):

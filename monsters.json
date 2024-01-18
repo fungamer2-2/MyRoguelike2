@@ -16,10 +16,17 @@
 		"level": 1,
 		"diff": 1,
 		"size": "tiny",
-		"speed": 135,
+		"speed": 140,
 		"flags": [ "SEES", "KEEN_HEARING" ],
 		"attack_msg": "<monster> bites <target>",
-		"blindsight_range": 12
+		"blindsight_range": 12,
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "1"		
+			}
+		]
 	},
 	{
 		"id": "cat",
@@ -31,7 +38,7 @@
 		"CON": 10,
 		"INT": 3,
 		"WIS": 12,
-		"CHA": 5,
+		"CHA": 7,
 		"HP": 2,
 		"to_hit": 0,
 		"base_damage": "1",
@@ -41,7 +48,14 @@
 		"speed": 130,
 		"attack_msg": "<monster> claws <target>",
 		"skills": { "perception": 1 },
-		"flags": [ "SEES" ]	
+		"flags": [ "SEES" ],
+		"attacks": [
+			{
+				"name": "Claw",
+				"attack_msg": "<monster> claws <target>",
+				"base_damage": "1"		
+			}
+		]	
 	},
 	{
 		"id": "lizard",
@@ -62,7 +76,14 @@
 		"speed": 30,
 		"base_damage": "1",
 		"attack_msg": "<monster> bites <target>",
-		"flags": [ "SEES" ]
+		"flags": [ "SEES" ],
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "1"		
+			}
+		]
 	},
 	{
 		"id": "jackal",
@@ -83,7 +104,14 @@
 		"base_damage": "1d4",
 		"attack_msg": "<monster> bites <target>",
 		"skills": { "perception": 1 },
-		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ]
+		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ],
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "1d4"		
+			}
+		]
 	},
 	{
 		"id": "kobold",
@@ -104,8 +132,15 @@
 		"size": "small",
 		"speed": 100,
 		"weapon": "dagger",
-		"attack_msg": "<monster> hits <target> with a dagger",
-		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ]
+		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ],
+		"attacks": [
+			{
+				"name": "Dagger",
+				"attack_msg": "<monster> hits <target> with a dagger",
+				"base_damage": "1d4",
+				"use_dex": true		
+			}
+		]
 	},
 	{
 		"id": "giant_rat",
@@ -127,7 +162,13 @@
 		"speed": 100,
 		"base_damage": "1d4",
 		"flags": [ "SEES", "PACK_TRAVEL", "PACK_TACTICS" ],
-		"attack_msg": "<monster> bites <target>"
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "1d4"		
+			}
+		]
 	},
 	{
 		"id": "giant_centipede",
@@ -152,6 +193,13 @@
 		"attack_msg": "<monster> bites <target>",
 		"blindsight_range": 6,
 		"flags": [ "SEES" ],
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "1d4"		
+			}
+		],
 		"poison": { "potency": 11, "max_damage": 20, "slowing": true }
 	},
 	{
@@ -172,11 +220,17 @@
 		"use_dex_melee": true,
 		"speed": 100,
 		"base_damage": "1d4",
-		"attack_msg": "<monster> bites <target>",
 		"poison": { "potency": 13, "max_damage": 21 },
 		"blindsight_range": 2,
 		"flags": [ "SEES" ],
-		"reach": 2
+		"reach": 2,
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "1d4"		
+			}
+		]
 	},
 	{
 		"id": "goblin",
@@ -197,8 +251,17 @@
 		"size": "small",
 		"speed": 100,
 		"weapon": "scimitar",
+		"shield": true,
 		"attack_msg": "<monster> hits <target> with a scimitar",
-		"flags": [ "SEES", "PACK_TRAVEL" ]
+		"flags": [ "SEES", "PACK_TRAVEL" ],
+		"attacks": [
+			{
+				"name": "Scimitar",
+				"attack_msg": "<monster> hits <target> with a scimitar",
+				"base_damage": "1d6",
+				"use_dex": true		
+			}
+		]
 	},
 	{
 		"id": "gray_ooze",
@@ -219,8 +282,14 @@
 		"base_damage": "1d6",
 		"blindsight_range": 12,
 		"acid_strength": 14,
-		"attack_msg": "<monster> hits <target> with its pseudopod",
-		"flags": [ "ACID_RESISTANT" ]
+		"flags": [ "ACID_RESISTANT" ],
+		"attacks": [
+			{
+				"name": "Pseudopod",
+				"attack_msg": "<monster> hits <target> with its pseudopod",
+				"base_damage": "1d6"		
+			}
+		]
 	},
 	{
 		"id": "orc",
@@ -239,8 +308,15 @@
 		"diff": 4,
 		"speed": 100,
 		"weapon": "greataxe",
-		"attack_msg": "<monster> hits <target> with a greataxe",
-		"flags": [ "SEES", "PACK_TRAVEL" ]
+		
+		"flags": [ "SEES", "PACK_TRAVEL" ],
+		"attacks": [
+			{
+				"name": "Greataxe",
+				"attack_msg": "<monster> hits <target> with a greataxe",
+				"base_damage": "1d12"		
+			}
+		]
 	},
 	{
 		"id": "dire_wolf",
@@ -257,10 +333,50 @@
 		"to_hit": 5,
 		"level": 14,
 		"diff": 5,
+		"size": "large",
 		"speed": 100,
-		"base_damage": "2d6",
 		"skills": { "perception": 2 },
-		"attack_msg": "<monster> bites <target>",
-		"flags": [ "SEES", "KEEN_HEARING", "PACK_TRAVEL", "PACK_TACTICS" ]
+		"flags": [ "SEES", "KEEN_HEARING", "PACK_TRAVEL", "PACK_TACTICS" ],
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "2d6"		
+			}
+		]
+	},
+	{
+		"id": "brown_bear",
+		"name": "bear",
+		"symbol": "B",
+		"category": "beast",
+		"STR": 19,
+		"DEX": 10,
+		"CON": 16,
+		"INT": 2,
+		"WIS": 13,
+		"CHA": 7,
+		"HP": 15,
+		"armor": 1,
+		"to_hit": 5,
+		"level": 14,
+		"diff": 5,
+		"size": "large",
+		"speed": 150,
+		"skills": { "perception": 2 },
+		"flags": [ "SEES" ],
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "1d8"	
+			},
+			{
+				"name": "Claw",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "2d6",
+				"attack_cost": 70	
+			}
+		]
 	}
 ]

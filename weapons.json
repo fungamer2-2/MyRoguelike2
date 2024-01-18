@@ -13,7 +13,7 @@
 		"base_damage": "1d4",
 		"damage_type": "pierce",
 		"finesse": true,
-		"thrown": [6, 18]
+		"thrown": [5, 15]
 	},
 	{
 		"id": "greatclub",
@@ -29,7 +29,7 @@
 		"symbol": "h",
 		"base_damage": "1d6",
 		"damage_type": "slash",
-		"thrown": [6, 18]
+		"thrown": [5, 15]
 	},
 	{
 		"id": "scimitar",
@@ -70,6 +70,6 @@
 		"symbol": "¥",
 		"base_damage": "1d7",
 		"damage_type": "pierce",
-		"thrown": [6, 18]
+		"thrown": [5, 15]
 	}	
 ]

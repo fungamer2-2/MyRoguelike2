@@ -89,7 +89,6 @@ class Player(Entity):
 				g.save()
 		
 		if self.activity_queue and not self.activity:
-			
 			new_act = self.activity_queue.popleft()
 			self.add_msg(f"You begin {new_act.name}.")
 			self.activity = new_act
@@ -382,7 +381,8 @@ class Player(Entity):
 		if item is self.weapon:
 			cost = 0
 			self.weapon = None
-		
+		elif item is self.shield:
+			self.shield = None
 			
 		self.use_energy(100)
 		self.quick_drop(item)
@@ -421,7 +421,7 @@ class Player(Entity):
 					if self.sees(mon):
 						self.add_msg(f"{mon.get_name(True)} makes an attack as you move away!", "warning")
 					oldenergy = mon.energy
-					mon.attack_pos(self.pos)
+					mon.attack_pos(self.pos, opportunity=True)
 					mon.energy = oldenergy
 					
 	def descend(self):

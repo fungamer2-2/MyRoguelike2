@@ -122,10 +122,6 @@ class Entity(ABC):
 			mod += 5
 		return mod
 	
-	@abstractmethod	
-	def base_damage_roll(self):
-		return 1
-		
 	def on_hear_noise(self, noise):
 		pass
 		

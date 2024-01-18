@@ -2,9 +2,9 @@ from entity import Entity
 from player import Player
 from utils import *
 from const import *
-from items import Weapon
+from items import Weapon, Shield
 from collections import deque
-import random, curses
+import random, curses, math
 from json_obj import *
 
 class Monster(Entity):
@@ -21,7 +21,6 @@ class Monster(Entity):
 		self.path = deque()
 		self.to_hit = 0
 		self.soundf = 0
-		self.damage = Dice(0,0,0)
 		self.weapon = None
 		self.shield = False
 		self.type = None
@@ -58,7 +57,6 @@ class Monster(Entity):
 		m.CHA = typ.CHA
 		m.HP = m.MAX_HP = typ.HP
 		m.to_hit = typ.to_hit
-		m.damage = typ.base_damage
 		
 		g = m.g
 		
@@ -450,20 +448,11 @@ class Monster(Entity):
 			return True
 		return False
 		
-	def base_damage_dice(self):
-		damage = self.damage
-		if self.weapon:
-			damage = self.weapon.damage
-		return damage
-		
-	def base_damage_roll(self):
-		return self.base_damage_dice().roll()
-		
-	def calc_to_hit_bonus(self, c):
+	def calc_base_to_hit_bonus(self, c):
 		g = self.g
 		board = g.get_board()
 		
-		mod = self.to_hit
+		mod = 0
 		
 		size = self.type.size
 		
@@ -487,6 +476,9 @@ class Monster(Entity):
 			
 		return mod + super().calc_to_hit_bonus(c)
 		
+	def calc_to_hit_bonus(self, other):
+		return self.to_hit + self.calc_base_to_hit_bonus(other)
+		
 	def calc_evasion(self):
 		ev = super().calc_evasion()
 		size = self.type.size
@@ -503,7 +495,7 @@ class Monster(Entity):
 	def get_armor(self):
 		return self.type.armor
 		
-	def get_hit_msg(self, c, damage):
+	def get_hit_msg(self, c, attack, damage):
 		g = self.g
 		player = g.get_player()
 		
@@ -513,7 +505,7 @@ class Monster(Entity):
 		monster_name = self.get_name() if u_see_attacker else "something"
 		target_name = c.get_name() if u_see_defender else "something"
 			
-		msg = self.type.attack_msg
+		msg = attack.attack_msg
 		msg = msg.replace("<monster>", monster_name)
 		msg = msg.replace("<target>", target_name)
 			
@@ -531,17 +523,66 @@ class Monster(Entity):
 	def get_attacks(self):
 		return self.type.attacks
 			
+	def get_to_hit(self, c, att):
+		to_hit = 0
+		if att:
+			stat = self.DEX if att.use_dex else self.STR
+			to_hit = (stat - 10) / 2
+			to_hit += 2 + max(0, self.get_diff_level() - 4) / 4
+			to_hit = max(0, to_hit)
+		else:
+			to_hit = self.to_hit
 			
-	def attack_pos(self, pos):
+		return to_hit + self.calc_base_to_hit_bonus(c)	
+	
+	def roll_to_hit(self, c, attack=None):
+		if attack is None:
+			return super().roll_to_hit(c)
+		if x_in_y(MIN_HIT_MISS_PROB, 100):
+			return 1000 if one_in(2) else -1000
+		
+		roll = gauss_roll(self.get_to_hit(c, attack))
+		evasion = c.calc_evasion()
+		
+		return roll - evasion
+		
+	def select_melee_attack(self, pos, opportunity=False):
+		reach = self.reach_dist()
+		if opportunity:
+			reach += 1
+			
+		attack_list = self.get_attacks()
+		eligible = [att for att in attack_list if self.distance(pos) <= reach]
+		
+		if not eligible:
+			return None
+		
+		if one_in(5):
+			return random.choice(eligible)
+		
+		weighted = []
+		for att in attack_list:
+			#Prefer faster attacks
+			weighted.append([att, 100/max(att.attack_cost, 1)])
+			
+		return random_weighted(weighted)
+		
+	def attack_pos(self, pos, opportunity=False):
 		g = self.g
 		board = g.get_board()
 		player = g.get_player()
 		if not (c := g.entity_at(pos)):
 			return False
+			
+		attack = self.select_melee_attack(pos, opportunity)
 		
-		attack_list = self.get_attacks()
+		if attack is None:
+			self.add_msg_if_u_see(c, f"{self.get_name(True)} has no available attacks.", "warning")	
+			return False
+			
 		
-		att_roll = self.roll_to_hit(c)
+			
+		att_roll = self.roll_to_hit(c, attack)
 		u_see_attacker = player.sees(self)
 		u_see_defender = player.sees(c)
 		print_msg = u_see_attacker or u_see_defender
@@ -550,17 +591,19 @@ class Monster(Entity):
 			if c.shield and c.shield_blocks < 1 and att_roll < SHIELD_BONUS:
 				if c.is_player():
 					c.add_msg(f"You block {self.get_name()}'s attack.")
+				else:
+					c.add_msg_if_u_see(c, f"{c.get_name(True)} blocks {self.get_name()}'s attack.")
 				c.shield_blocks += 1
 			else:
-				damage = self.base_damage_roll()
-				stat = self.DEX if self.type.use_dex_melee else self.STR
+				damage = attack.base_damage.roll()
+				stat = self.DEX if attack.use_dex else self.STR
 				damage += div_rand(stat - 10, 2)
 				damage = max(damage, 1)
 				damage = apply_armor(damage, c.get_armor())
 					
 				msg_type = "bad" if (c.is_player() and damage > 0) else "neutral"
 				if print_msg:
-					self.add_msg_if_u_see(self, self.get_hit_msg(c, damage), msg_type)
+					self.add_msg_if_u_see(self, self.get_hit_msg(c, attack, damage), msg_type)
 					
 				c.take_damage(damage)
 				
@@ -571,12 +614,12 @@ class Monster(Entity):
 					if acid > 0:
 						c.hit_with_acid(acid)
 		elif u_see_attacker:
-			if c.is_player() and c.has_status("Foresight") and one_in(3): #No need to tell them every time
+			if c.is_player() and c.has_status("Foresight") and one_in(4): #No need to tell them every time
 				self.add_msg(f"You anticipate {self.get_name()}'s attack and instinctively avoid it!", "good")
 			defender = c.get_name() if u_see_defender else "something"
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {defender}.")
 		
-		self.use_energy(100)
+		self.use_energy(max(attack.attack_cost, 1))
 		self.set_target(pos)
 		return True
 		
@@ -679,8 +722,13 @@ class Monster(Entity):
 					if not (self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos()):
 						self.target_entity(player)
 						
-					if self.id == "bat" and one_in(4):
-						self.set_rand_target()
+					if self.id == "bat":
+						if self.bat_tick > 0 or one_in(6):
+							if self.bat_tick > 0:
+								self.bat_tick -= 1	
+							self.set_rand_target()
+						elif one_in(15):
+							self.bat_tick = rng(2, 5)	
 				elif self.sees_pos(player.pos): 
 					#Target is in LOS, but invisible
 					perceived_invis = self.determine_invis(player)
@@ -707,6 +755,7 @@ class Monster(Entity):
 					#Once we reach the target, make a perception check contested by the player's stealth check to determine the new location
 					if self.perception_roll() >= player.stealth_roll():
 						self.set_target(player.pos)
+						self.bat_tick = 0
 					elif self.has_flag("PACK_TRAVEL") and self.set_pack_target_pos():
 						self.patience += rng(0, 1)
 					else:
