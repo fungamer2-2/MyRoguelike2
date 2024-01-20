@@ -19,7 +19,6 @@ class Monster(Entity):
 		self.patience = 0
 		self.pursue_check = 0
 		self.path = deque()
-		self.to_hit = 0
 		self.soundf = 0
 		self.weapon = None
 		self.shield = False
@@ -56,7 +55,6 @@ class Monster(Entity):
 		m.WIS = typ.WIS
 		m.CHA = typ.CHA
 		m.HP = m.MAX_HP = typ.HP
-		m.to_hit = typ.to_hit
 		
 		g = m.g
 		
@@ -65,6 +63,20 @@ class Monster(Entity):
 			weap = g.create_weapon(weap)
 		m.weapon = weap
 		m.shield = typ.shield
+		return m
+		
+	def clone(self):
+		import copy
+		m = copy.copy(self)
+		m.pos = self.pos.copy()
+		m.status = self.status.copy()
+		m.type = self.type
+		
+		g = m.g
+		
+		weap = m.type.weapon
+		if weap:
+			m.weapon = g.create_weapon(weap)
 		return m
 		
 	def has_flag(self, name):
@@ -404,14 +416,14 @@ class Monster(Entity):
 				return True
 		return False
 		
-	def take_damage(self, dam, src=None):
+	def take_damage(self, dam, src=None, typ=None):
 		super().take_damage(dam)
 		if self.HP <= 0:
 			self.die()
 			if src and src.is_player():
 				src.on_defeat_monster(self)
 		elif src:
-			self.on_hit(src)
+			self.on_hit(src, dam, typ)
 			
 	def die(self):
 		g = self.g
@@ -476,9 +488,6 @@ class Monster(Entity):
 			
 		return mod + super().calc_to_hit_bonus(c)
 		
-	def calc_to_hit_bonus(self, other):
-		return self.to_hit + self.calc_base_to_hit_bonus(other)
-		
 	def calc_evasion(self):
 		ev = super().calc_evasion()
 		size = self.type.size
@@ -524,15 +533,11 @@ class Monster(Entity):
 		return self.type.attacks
 			
 	def get_to_hit(self, c, att):
-		to_hit = 0
-		if att:
-			stat = self.DEX if att.use_dex else self.STR
-			to_hit = (stat - 10) / 2
-			to_hit += 2 + max(0, self.get_diff_level() - 4) / 4
-			to_hit = max(0, to_hit)
-		else:
-			to_hit = self.to_hit
-			
+		stat = self.DEX if att.use_dex else self.STR
+		to_hit = (stat - 10) / 2
+		to_hit += 2 + max(0, self.get_diff_level() - 4) / 4
+		to_hit = max(0, to_hit)
+		
 		return to_hit + self.calc_base_to_hit_bonus(c)	
 	
 	def roll_to_hit(self, c, attack=None):
@@ -691,7 +696,7 @@ class Monster(Entity):
 	def get_size(self):
 		return self.type.size
 	
-	def on_hit(self, ent):
+	def on_hit(self, ent, dam, typ):
 		g = self.g
 		
 		if self.has_flag("PACK_TRAVEL"):
@@ -702,6 +707,45 @@ class Monster(Entity):
 					continue
 				
 				self.set_state("AWARE")
+				
+		if self.has_flag("SPLITS") and self.HP >= rng(10, 20):
+			if dam >= rng(2, 4):
+				eff_dam = dam
+				if typ == "slash":
+					eff_dam *= 2
+				if x_in_y(eff_dam, self.MAX_HP*2):
+					self.heal(dam)
+					
+					hp1 = (self.HP + 1)//2
+					hp2 = self.HP - hp1
+					
+					max_hp1 = (self.MAX_HP + 1)//2
+					max_hp2 = self.MAX_HP - max_hp1
+					
+					if one_in(2):
+						hp1, hp2 = hp2, hp1
+						max_hp1, max_hp2 = max_hp2, max_hp1
+						
+					clone = self.clone()
+					self.HP = hp1
+					self.MAX_HP = max_hp1
+					
+					clone.HP = hp2
+					clone.MAX_HP = max_hp2
+					
+					board = g.get_board()
+					
+					positions = board.get_adjacent_tiles(self.pos)
+					cands = []
+					for pos in positions:
+						if not g.entity_at(pos):
+							cands.append(pos)
+							
+					if cands:
+						g.spawn_monster_at(clone, random.choice(cands))
+						player = g.get_player()			
+						if player.sees(self) or player.sees(clone):
+							player.add_msg(f"{self.get_name(True)} splits into two!", "warning")
 	
 	def move(self):
 		g = self.g

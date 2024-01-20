@@ -147,7 +147,7 @@ class MeleeAttackType(JSONObject):
 		obj.load_optional(d, "use_dex", False, bool)
 		obj.load_optional(d, "reach", 1, int)
 		obj.load_optional(d, "attack_msg", "<monster> hits <target>", str)
-		
+		obj.load_optional(d, "acid_strength", 0, int)
 		dam = obj.get_required(d, "base_damage", str)
 		obj.set_field("base_damage", Dice(*parse_dice(dam)))
 		
@@ -171,7 +171,6 @@ class MonsterType(JSONObject):
 		obj.load_required(d, "HP", int)
 		obj.load_required(d, "level", int)
 		obj.load_required(d, "diff", int)
-		obj.load_required(d, "to_hit", int)
 		obj.load_optional(d, "armor", 0, int)
 		obj.load_optional(d, "speed", 100, int)
 		obj.load_optional(d, "size", "medium", str)

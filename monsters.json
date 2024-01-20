@@ -280,14 +280,15 @@
 		"diff": 4,
 		"speed": 35,
 		"base_damage": "1d6",
-		"blindsight_range": 12,
+		"blindsight_range": 10,
 		"acid_strength": 14,
 		"flags": [ "ACID_RESISTANT" ],
 		"attacks": [
 			{
 				"name": "Pseudopod",
 				"attack_msg": "<monster> hits <target> with its pseudopod",
-				"base_damage": "1d6"		
+				"base_damage": "1d6", 
+				"acid_strength": 14	
 			}
 		]
 	},
@@ -307,8 +308,7 @@
 		"level": 11,
 		"diff": 4,
 		"speed": 100,
-		"weapon": "greataxe",
-		
+		"weapon": "greataxe",	
 		"flags": [ "SEES", "PACK_TRAVEL" ],
 		"attacks": [
 			{
@@ -330,7 +330,6 @@
 		"WIS": 12,
 		"CHA": 7,
 		"HP": 15,
-		"to_hit": 5,
 		"level": 14,
 		"diff": 5,
 		"size": "large",
@@ -357,9 +356,8 @@
 		"WIS": 13,
 		"CHA": 7,
 		"HP": 15,
-		"armor": 1,
-		"to_hit": 5,
-		"level": 14,
+		"armor": 1,l
+		"level": 15,
 		"diff": 5,
 		"size": "large",
 		"speed": 150,
@@ -373,10 +371,69 @@
 			},
 			{
 				"name": "Claw",
-				"attack_msg": "<monster> bites <target>",
+				"attack_msg": "<monster> claws <target>",
 				"base_damage": "2d6",
 				"attack_cost": 70	
 			}
 		]
-	}
+	},
+	{
+		"id": "jelly",
+		"name": "jelly",
+		"symbol": "J",
+		"category": "ooze",
+		"STR": 15,
+		"DEX": 6,
+		"CON": 14,
+		"INT": 2,
+		"WIS": 6,
+		"CHA": 1,
+		"HP": 45,
+		"level": 17,
+		"diff": 6,
+		"size": "large",
+		"speed": 30,
+		"blindsight_range": 12,
+		"flags": [ "ACID_RESISTANT", "SPLITS" ],
+		"acid_strength": 6,
+		"attacks": [
+			{
+				"name": "Pseudopod",
+				"attack_msg": "<monster> hits <target> with its pseudopod",
+				"base_damage": "2d6"
+			}
+		]
+	},
+	{
+		"id": "gargoyle",
+		"name": "gargoyle",
+		"symbol": "â",
+		"category": "elemental",
+		"STR": 15,
+		"DEX": 11,
+		"CON": 16,
+		"INT": 6,
+		"WIS": 11,
+		"CHA": 7,
+		"HP": 15,
+		"armor": 4,
+		"level": 17,
+		"diff": 6,
+		"speed": 140,
+		"flags": [ "SEES" ],
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "1d6",
+				"attack_cost": 90
+			},
+			{
+				"name": "Claw",
+				"attack_msg": "<monster> claws <target>",
+				"base_damage": "1d6",
+				"attack_cost": 50	
+			}
+		]
+	},
 ]

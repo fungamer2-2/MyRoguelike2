@@ -46,7 +46,7 @@ class Player(Entity):
 		
 	def calc_evasion(self):
 		bonus = 5 + stat_mod(self.DEX)
-		if not self.is_alive():
+		if not self.is_alive() or self.has_status("Paralyzed"):
 			bonus = 0
 		else:
 			foresight = self.has_status("Foresight")
@@ -493,7 +493,6 @@ class Player(Entity):
 		
 		att_roll -= mon_shield_bonus
 		if att_roll >= 0:
-			mon.on_hit(self)
 			stat = self.STR
 			if finesse:
 				stat = max(stat, self.DEX)	
@@ -540,7 +539,7 @@ class Player(Entity):
 				self.add_msg(f"You hit {mon.get_name()} for {damage} damage.")
 				if crit:
 					self.add_msg("Critical hit!", "good")
-				mon.take_damage(damage)
+				mon.take_damage(damage, src=self, typ=self.weapon.dmg_type)
 				if mon.is_alive():
 					self.add_msg(f"It has {mon.HP}/{mon.MAX_HP} HP.")
 				else:
@@ -759,7 +758,8 @@ class Player(Entity):
 			return
 		
 		self.remove_from_inventory(item)
-		
+		if item is self.weapon:
+			self.weapon = None
 		self.shoot_projectile_at(mon.pos, proj)
 		
 		destroy_chance = 10 if isinstance(item, Weapon) else 6

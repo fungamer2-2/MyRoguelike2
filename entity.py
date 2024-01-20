@@ -112,8 +112,7 @@ class Entity(ABC):
 	@abstractmethod
 	def get_name(self, capitalize=False):
 		return "Unknown Entity"
-	
-	@abstractmethod	
+		
 	def calc_to_hit_bonus(self, other):
 		mod = 0
 		if not self.sees(other):

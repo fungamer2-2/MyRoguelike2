@@ -425,15 +425,22 @@ class Game:
 					board.set_collision_cache(pos, player)
 					return
 					
-	def place_monster_at(self, typ_id, pos):
-		typ = self.get_mon_type(typ_id)
-		m = Monster.from_type(typ)
+	def spawn_monster_at(self, m, pos):
 		board = self.get_board()
 		if m.move_to(pos):
 			board.set_collision_cache(pos, m)
 			self.monsters.append(m)
+			return True
+		return False
+					
+	def place_monster_at(self, typ_id, pos):
+		typ = self.get_mon_type(typ_id)
+		m = Monster.from_type(typ)
+		
+		if self.spawn_monster_at(m, pos):
 			return m
-		return None
+		else:
+			return None
 		
 	def place_monster(self, typ_id):
 		typ = self.get_mon_type(typ_id)
