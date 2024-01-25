@@ -166,7 +166,8 @@
 			{
 				"name": "Bite",
 				"attack_msg": "<monster> bites <target>",
-				"base_damage": "1d4"		
+				"base_damage": "1d4",
+				"use_dex": true		
 			}
 		]
 	},
@@ -281,7 +282,6 @@
 		"speed": 35,
 		"base_damage": "1d6",
 		"blindsight_range": 10,
-		"acid_strength": 14,
 		"flags": [ "ACID_RESISTANT" ],
 		"attacks": [
 			{
@@ -329,7 +329,7 @@
 		"INT": 3,
 		"WIS": 12,
 		"CHA": 7,
-		"HP": 15,
+		"HP": 37,
 		"level": 14,
 		"diff": 5,
 		"size": "large",
@@ -355,8 +355,8 @@
 		"INT": 2,
 		"WIS": 13,
 		"CHA": 7,
-		"HP": 15,
-		"armor": 1,l
+		"HP": 45,
+		"armor": 1,
 		"level": 15,
 		"diff": 5,
 		"size": "large",
@@ -395,12 +395,12 @@
 		"speed": 30,
 		"blindsight_range": 12,
 		"flags": [ "ACID_RESISTANT", "SPLITS" ],
-		"acid_strength": 6,
 		"attacks": [
 			{
 				"name": "Pseudopod",
 				"attack_msg": "<monster> hits <target> with its pseudopod",
-				"base_damage": "2d6"
+				"base_damage": "2d6",
+				"acid_strength": 6
 			}
 		]
 	},
@@ -415,7 +415,7 @@
 		"INT": 6,
 		"WIS": 11,
 		"CHA": 7,
-		"HP": 15,
+		"HP": 52,
 		"armor": 4,
 		"level": 17,
 		"diff": 6,
@@ -436,4 +436,36 @@
 			}
 		]
 	},
+	{
+		"id": "giant_axolotl",
+		"name": "giant axolotl",
+		"symbol": "ã",
+		"category": "beast",
+		"STR": 10,
+		"DEX": 14,
+		"CON": 14,
+		"INT": 2,
+		"WIS": 8,
+		"CHA": 6,
+		"HP": 78,
+		"level": 19,
+		"diff": 6,
+		"speed": 100,
+		"flags": [ "SEES" ],
+		"regen_rate": 1,	
+		"attacks": [
+			{
+				"name": "Bite",
+				"attack_msg": "<monster> bites <target>",
+				"base_damage": "2d6",
+				"use_dex": true
+			},
+			{
+				"name": "Tail",
+				"attack_msg": "<monster> hits <target> with its tail",
+				"base_damage": "2d6",
+				"use_dex": true
+			}
+		]
+	}
 ]

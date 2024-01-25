@@ -542,8 +542,7 @@ class Player(Entity):
 				mon.take_damage(damage, src=self, typ=self.weapon.dmg_type)
 				if mon.is_alive():
 					self.add_msg(f"It has {mon.HP}/{mon.MAX_HP} HP.")
-				else:
-					self.on_defeat_monster(mon)
+				
 		elif att_roll + mon_shield_bonus >= 0:
 			self.add_msg(f"{mon.get_name(True)} blocks your attack with its shield.")
 		else:
@@ -565,7 +564,7 @@ class Player(Entity):
 		
 	def on_defeat_monster(self, mon):
 		g = self.g
-		xp_gain = 10 * mon.get_diff_level()**1.7
+		xp_gain = 10 * mon.get_diff_level()**1.65
 		xp_gain = round(xp_gain/5)*5
 		self.gain_xp(xp_gain)
 		
@@ -735,7 +734,7 @@ class Player(Entity):
 		if not mon:
 			return False
 		
-		proj = Projectile(accuracy=self.attack_accuracy(True), name=item.name, can_crit=True)
+		proj = Projectile(accuracy=self.attack_accuracy(True, item), name=item.name, can_crit=True)
 		proj.short_range = short_range
 		proj.long_range = long_range
 		proj.dmg = item.damage
@@ -743,14 +742,14 @@ class Player(Entity):
 		stat = self.STR
 		if item.finesse:
 			stat = max(stat, self.DEX)
-		mod = div_rand(stat - 10, 2)
-		proj.dmg_mod += mod
+		#mod = div_rand(stat - 10, 2)
+#		proj.dmg_mod += mod
 		
 		to_hit = proj.to_hit_prob(self, mon)
 		dist = mon.pos.square_dist(self.pos)
 		self.add_msg(f"Throwing: {item.name} ({to_hit:.1f}% to hit)")
 		if dist > short_range:
-			self.add_msg(f"Accuracy is reduced beyond {short_range}.", "warning")
+			self.add_msg(f"Accuracy is reduced beyond {short_range} tiles.", "warning")
 		
 		self.add_msg("Press Enter to throw, or any other key to cancel")
 		g.draw_board()

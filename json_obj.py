@@ -182,11 +182,11 @@ class MonsterType(JSONObject):
 		
 		obj.load_optional(d, "blindsight_range", 0, int)
 		obj.load_optional(d, "poison", False, (bool, dict))
-		obj.load_optional(d, "acid_strength", 0, int)
 		obj.load_optional(d, "weapon", None)
 		obj.load_optional(d, "shield", False, bool)
 		
 		obj.load_optional(d, "attacks", [], list)
+		obj.load_optional(d, "regen_per_turn", 0, int)
 		
 		for i, typ in enumerate(obj.attacks):
 			obj.attacks[i] = MeleeAttackType.load(typ)	

@@ -66,12 +66,14 @@ class Game:
 		
 	def autosave(self):
 		time_diff = time.time() - self.last_save_time
-		if time_diff >= 1:
-			Thread(target=self.save).start()
+		if time_diff >= 1.5:
+			t = Thread(target=self.save)
+			t.start()
 			
 	def save(self):
 		player = self.get_player()
 		if not player.is_alive():
+			self.delete_saved_game()
 			return
 		try:
 			saved_data = pickle.dumps(self)	
@@ -323,11 +325,12 @@ class Game:
 		if one_in(5):
 			pos = board.random_passable()
 			board.place_item_at(pos, Shield())
-			
-		num = rng(0, rng(0, 9))
-		for _ in range(num):
-			pos = board.random_passable()	
-			board.place_item_at(pos, Dart())
+		
+		if not one_in(5):	
+			num = rng(0, rng(0, rng(0, 9)))
+			for _ in range(num):
+				pos = board.random_passable()	
+				board.place_item_at(pos, Dart())
 		
 	def place_monsters(self):
 		eligible_types = {}
@@ -1054,7 +1057,10 @@ class Game:
 					mod = math.ceil((stat - 10)/2)
 					if mod != 0:
 						dmg += f"+{mod}" if mod > 0 else str(mod)
-				info.add_line(f"{att.name} - {dmg} damage, {monster_to_hit:.1f}% to hit you")
+				extra = ""		
+				if att.acid_strength > 0:
+					extra += f" (can deal up to {att.acid_strength} additional acid damage if any damage is dealt)"
+				info.add_line(f"{att.name} - {dmg} damage, {monster_to_hit:.1f}% to hit you{extra}")
 		info.show()
 		self.getch()
 		

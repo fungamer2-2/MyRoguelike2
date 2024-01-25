@@ -223,6 +223,7 @@ class Monster(Entity):
 			if self.patience > 0:
 				self.patience -= 1
 		
+		regen_rate = self.regen_rate()
 		if self.poison > 0:
 			amount = 1 + div_rand(self.poison, 10)
 			amount = min(amount, self.poison)
@@ -230,6 +231,9 @@ class Monster(Entity):
 			self.poison -= amount
 			if self.poison < 0:
 				self.poison = 0
+		
+		if regen_rate > 0:
+			self.heal(regen_rate)
 		elif one_in(16) and not self.has_flag("NO_REGEN"):
 			self.heal(1)
 			
@@ -346,6 +350,14 @@ class Monster(Entity):
 		reach = self.reach_dist()
 		return dist <= reach and self.has_clear_path_to(target)
 	
+	def move_to_or_attack(self, pos):
+		if self.move_to(pos):
+			return True
+		if self.distance(pos) <= 1 and (c := g.entity_at(pos)):
+			if self.attack_pos(c):
+				return True
+		return False
+	
 	def move_to_target(self):
 		if not self.has_target():
 			return
@@ -357,7 +369,8 @@ class Monster(Entity):
 		for pos in board.get_adjacent_tiles(self.pos):
 			if not board.passable(pos):
 				continue
-			if not g.entity_at(pos):
+			ent = g.entity_at(pos)
+			if not ent or self.will_attack(ent):
 				can_move = True
 				break
 		if not can_move:
@@ -366,13 +379,14 @@ class Monster(Entity):
 		
 		target = self.target_pos
 		dist = self.distance(target)
+		
+		
 		if (c := g.entity_at(target)) and self.will_attack(c):
 			if self.can_reach_attack(target) and ((x_in_y(3, dist + 2) or one_in(3))):
 				if self.attack_pos(target):
 					return
 				
 		can_path = self.path_towards(target)
-		
 		#If we can't pathfind, try direct movement instead
 		if not (can_path or self.move_towards(target)):
 			#As a last resort, move randomly.
@@ -504,6 +518,9 @@ class Monster(Entity):
 	def get_armor(self):
 		return self.type.armor
 		
+	def regen_rate(self):
+		return self.type.regen_per_turn
+		
 	def get_hit_msg(self, c, attack, damage):
 		g = self.g
 		player = g.get_player()
@@ -525,9 +542,6 @@ class Monster(Entity):
 			msg += " but deals no damage"
 			
 		return msg + "."
-		
-	def get_acid_strength(self):
-		return self.type.acid_strength
 		
 	def get_attacks(self):
 		return self.type.attacks
@@ -615,7 +629,7 @@ class Monster(Entity):
 				if damage > 0:
 					if self.type.poison:
 						self.inflict_poison_to(c)
-					acid = self.get_acid_strength()
+					acid = attack.acid_strength
 					if acid > 0:
 						c.hit_with_acid(acid)
 		elif u_see_attacker:
@@ -708,7 +722,7 @@ class Monster(Entity):
 				
 				self.set_state("AWARE")
 				
-		if self.has_flag("SPLITS") and self.HP >= rng(10, 20):
+		if self.has_flag("SPLITS") and rng(self.HP, self.MAX_HP) >= rng(10, 20):
 			if dam >= rng(2, 4):
 				eff_dam = dam
 				if typ == "slash":
