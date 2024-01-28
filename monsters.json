@@ -183,11 +183,9 @@
 		"WIS": 7,
 		"CHA": 3,
 		"HP": 5,
-		"to_hit": 4,
 		"level": 7,
 		"diff": 3,
 		"armor": 1,
-		"use_dex_melee": true,
 		"size": "small",
 		"speed": 90,
 		"base_damage": "1d4",
@@ -198,7 +196,8 @@
 			{
 				"name": "Bite",
 				"attack_msg": "<monster> bites <target>",
-				"base_damage": "1d4"		
+				"base_damage": "1d4",
+				"use_dex": true		
 			}
 		],
 		"poison": { "potency": 11, "max_damage": 20, "slowing": true }
@@ -215,10 +214,8 @@
 		"WIS": 10,
 		"CHA": 3,
 		"HP": 11,
-		"to_hit": 6,
 		"level": 9,
 		"diff": 3,
-		"use_dex_melee": true,
 		"speed": 100,
 		"base_damage": "1d4",
 		"poison": { "potency": 13, "max_damage": 21 },
@@ -229,7 +226,8 @@
 			{
 				"name": "Bite",
 				"attack_msg": "<monster> bites <target>",
-				"base_damage": "1d4"		
+				"base_damage": "1d4",
+				"use_dex": true	
 			}
 		]
 	},

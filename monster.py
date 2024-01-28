@@ -639,7 +639,7 @@ class Monster(Entity):
 			self.add_msg_if_u_see(self, f"{self.get_name(True)}'s attack misses {defender}.")
 		
 		self.use_energy(max(attack.attack_cost, 1))
-		self.set_target(pos)
+		
 		return True
 		
 	def acid_resist(self):
@@ -672,16 +672,40 @@ class Monster(Entity):
 					c.add_status("Slowed", rng(dmg, dmg*4), paralyzed)
 	
 	def add_status(self, name, dur, silent=False):
+		had_status = self.has_status(name)
+		
 		super().add_status(name, dur)
 		
 		g = self.g
+		player = g.get_player()
 		if not silent:
 			eff_type = g.get_effect_type(name)
-			if self.has_status(name):
-				self.add_msg_if_u_see(self, eff_type.mon_extend_msg)	
+			if had_status:
+				msg = eff_type.mon_extend_msg
 			else:
-				self.add_msg_if_u_see(self, eff_type.mon_apply_msg)							
-									
+				msg = eff_type.mon_apply_msg
+				
+			mon_msg = msg.replace("<monster>", self.get_name())		
+			if mon_msg.startswith(self.get_name()):
+				mon_msg = mon_msg.capitalize()	
+			
+			self.add_msg_if_u_see(self, mon_msg)							
+		
+	def remove_status(self, name, silent=False):
+		had_status = self.has_status(name)
+		super().remove_status(name)
+		g = self.g
+		
+		if not silent and had_status:
+			eff_type = g.get_effect_type(name)
+			msg = eff_type.mon_remove_msg
+				
+			mon_msg = msg.replace("<monster>", self.get_name())		
+			if mon_msg.startswith(self.get_name()):
+				mon_msg = mon_msg.capitalize()	
+			
+			self.add_msg_if_u_see(self, mon_msg)
+						
 	def random_guess_invis(self):
 		g = self.g
 		board = g.get_board()
@@ -727,7 +751,7 @@ class Monster(Entity):
 				eff_dam = dam
 				if typ == "slash":
 					eff_dam *= 2
-				if x_in_y(eff_dam, self.MAX_HP*2):
+				if x_in_y(eff_dam, self.MAX_HP):
 					self.heal(dam)
 					
 					hp1 = (self.HP + 1)//2
@@ -770,7 +794,7 @@ class Monster(Entity):
 		is_targeting_u = self.has_target() and self.target_pos == player.pos
 		
 		if reached_target:
-			self.clear_target()
+			self.clear_target()	
 		
 		match self.state:
 			case "IDLE":
@@ -837,7 +861,11 @@ class Monster(Entity):
 					self.alerted()
 				elif self.soundf <= 0:
 					self.set_state("IDLE")
-				
+		
+		if self.has_status("Confused") and not one_in(4):
+			self.set_rand_target()
+			
+		
 		self.move_to_target()
 		
 	def push_away_from(self, pos, distance):

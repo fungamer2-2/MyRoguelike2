@@ -1,17 +1,19 @@
 from const import *
-from items import *
 
+from items import *
 from json_obj import *
 from board import Board
 from entity import Entity
 from monster import Monster
 from player import Player
+from spell import Spell
+
 from threading import Thread
 from messages import MessageLog
 from noise_event import NoiseEvent
 from utils import *
 from projectile import Projectile
-	
+
 import curses, textwrap, math, pickle, time
 
 from inventory_ui import *
@@ -26,12 +28,16 @@ def _check_type(typ, types, type_name):
 class Game:
 	_INST = None
 	
-	def __new__(cls):
+	@classmethod
+	def get_instance(cls):
 		if cls._INST:
 			return cls._INST
 		obj = object.__new__(cls)
 		cls._INST = obj
-		return obj
+		return obj 
+	
+	def __new__(cls):
+		return cls.get_instance()
 	
 	def __init__(self):
 		self._board = Board(50, 18)
@@ -171,6 +177,7 @@ class Game:
 		curses.noecho()
 		curses.curs_set(False)
 		Entity.g = self
+		Spell.g = self
 		screen.addstr("Loading game, please wait...")
 		screen.refresh()
 		
@@ -268,7 +275,7 @@ class Game:
 			[EnlargementPotion, 20],
 			[ShrinkingPotion, 20],
 			[SpeedPotion, 30],
-			[ForesightPotion, 15]
+			[ForesightPotion, 12]
 		]
 		
 		for _ in range(rng(1, 5)):
@@ -417,6 +424,9 @@ class Game:
 		
 		board.player = player
 		
+		player.add_to_inventory(WandFlame())
+		player.add_to_inventory(WandConfuse())
+		
 	def place_player(self):
 		board = self.get_board()
 		player = self.get_player()
@@ -548,6 +558,8 @@ class Game:
 		
 		self.remove_dead()
 		self.process_noise_events()
+		
+		self.refresh_mon_pos_cache()
 		
 	def items_at(self, pos):
 		board = self.get_board()
@@ -1038,16 +1050,14 @@ class Game:
 		player_to_hit = gauss_roll_prob(player.calc_to_hit_bonus(monster), mon_ev)
 		player_to_hit = player_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
 
-		
-		monster_to_hit = gauss_roll_prob(monster.calc_to_hit_bonus(player), player_ev)	
-		monster_to_hit = monster_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
-		
 		info.add_line(f"Your attacks have a {player_to_hit:.1f}% probability to hit this creature.")
 		
 		if (attacks := monster.get_attacks()):
 			info.add_line("It has the following attacks:")
 			for att in attacks:
 				monster_to_hit = gauss_roll_prob(monster.get_to_hit(player, att), player_ev)
+				monster_to_hit = monster_to_hit*(1-MIN_HIT_MISS_PROB/100) + MIN_HIT_MISS_PROB/2
+		
 				dmgdice = att.base_damage
 				if dmgdice.num == 0:
 					dmg = str(dmgdice.mod)
@@ -1105,8 +1115,7 @@ class Game:
 			return False
 		
 		return inventory_menu(self)
-		
-				
+					
 	def do_projectile(self, pos1, pos2):
 		board = self.get_board()
 		player = self.get_player()
@@ -1124,6 +1133,24 @@ class Game:
 		except GeneratorExit:
 			pass
 		self.projectile = None
+		
+	def display_projectile_animation(self, pos1, pos2):
+		for _ in self.do_projectile(pos1, pos2): pass
+		
+	def select_monster_in_range(self, dist, msg):
+		player = self.get_player()
+		monsters = list(player.visible_monsters())
+		mons_in_range = [mon for mon in monsters if mon.pos.square_dist(player.pos) <= dist]
+		
+		if not mons_in_range:
+			self.add_message(f"You can't see any available targets within range.", "info")
+			return None
+		
+		mon = self.select_monster(mons_in_range, msg)
+		if not mon:
+			return None
+		
+		return mon
 		
 class PopupInfo:
 	

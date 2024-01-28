@@ -28,7 +28,10 @@ class Projectile:
 		ev = defender.ranged_evasion()
 		
 		prob = gauss_roll_prob(self.accuracy - penalty, ev)
-		return prob	
+		return prob
+		
+	def damage_msg(self, attacker, defender, damage):
+		return make_damage_msg(f"The {self.name} hits {defender.get_name()}", attacker, damage)	
 	
 	def on_hit(self, attacker, defender, margin):
 		crit = False
@@ -38,15 +41,23 @@ class Projectile:
 		
 		damage = self.roll_damage(crit)
 		damage = defender.apply_armor(damage)
-		msg = f"The {self.name} hits {defender.get_name()}"
-		if attacker.is_player():
-			msg += f" for {damage} damage"
-		msg += "."
-		attacker.add_msg_if_u_see(defender, msg) 
+		msg = self.damage_msg(attacker, defender, margin)
+		defender.combat_msg(msg) 
 		if damage > 0 and crit:
 			attacker.add_msg("Critical hit!", "good")
 		
 		defender.take_damage(damage, attacker)
 		if defender.is_alive() and defender.is_monster(): 
 			if attacker.is_player():
-				defender.alerted()		
+				defender.alerted()
+			
+class SpellProjectile(Projectile):
+	
+	def __init__(self, spell, accuracy=0, name="spell effect", max_range=5):
+		super().__init__(accuracy=accuracy, name=name)
+		self.short_range = max_range
+		self.long_range = max_range
+		self.spell = spell
+		
+	def on_hit(self, attacker, defender, margin):
+		self.spell.do_spell_effect(attacker, defender.pos)

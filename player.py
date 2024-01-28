@@ -44,6 +44,9 @@ class Player(Entity):
 	def is_unarmed(self):
 		return self.weapon is UNARMED
 		
+	def unwield(self):
+		self.weapon = UNARMED
+		
 	def calc_evasion(self):
 		bonus = 5 + stat_mod(self.DEX)
 		if not self.is_alive() or self.has_status("Paralyzed"):
@@ -220,17 +223,20 @@ class Player(Entity):
 		if self.HP >= self.MAX_HP:
 			return False
 		g = self.g
-		num_visible = 0
+		num_dangers = 0
 		foresight = self.has_status("Foresight")
+		num = 0
 		for mon in self.visible_monsters():
 			perceived = True
 			if not foresight and self.is_resting:
 				perceived = mon.stealth_roll() >= self.get_perception()
-				
-			num_visible += perceived	
+			num += 1
 			
-		if num_visible > 0:
-			if num_visible == 1:
+			if self.distance(mon) <= max(6, mon.reach_dist() + 1):	
+				num_dangers += perceived
+			
+		if num_dangers > 0:
+			if num == 1:
 				self.add_msg("There's a monster nearby!", "warning")
 			else:
 				self.add_msg("There are monsters nearby!", "warning")
@@ -281,7 +287,7 @@ class Player(Entity):
 		stat = self.STR
 		
 		finesse = item.finesse
-		heavy = item.heavy
+		heavy = item.heavy if isinstance(item, Weapon) else False
 		if finesse:
 			stat = max(self.STR, self.DEX)
 		elif ranged:
@@ -409,6 +415,8 @@ class Player(Entity):
 				self.add_msg(f"You see here: {items}")
 		for mon, old_dist in prev_dist:
 			if not mon.is_aware():
+				continue
+			if mon.has_status("Confused"):
 				continue
 			reach = mon.reach_dist() 
 			if reach > 1 and not mon.has_clear_path_to(self.pos):
@@ -758,7 +766,7 @@ class Player(Entity):
 		
 		self.remove_from_inventory(item)
 		if item is self.weapon:
-			self.weapon = None
+			self.unwield()
 		self.shoot_projectile_at(mon.pos, proj)
 		
 		destroy_chance = 10 if isinstance(item, Weapon) else 6

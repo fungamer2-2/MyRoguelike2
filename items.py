@@ -3,6 +3,7 @@ from const import *
 from activity import *
 from json_obj import WeaponType
 import curses
+from spell import *
 
 class Item:
 	description = "A generic item. You shouldn't see this in-game."
@@ -365,21 +366,48 @@ class Shield(Item):
 			player.add_msg("You can't equip a shield while wielding a two-handed weapon.")
 			return ItemUseResult.NOT_USED
 			
-		player.add_msg("You equip a shield.")
-		player.use_energy(150)
-		player.shield = self
+		if player.shield is self:
+			player.add_msg("You put away your shield.")
+			player.use_energy(150)
+			player.shield = None
+		elif player.shield:
+			player.add_msg("You already have a shield equipped.")
+			return ItemUseResult.NOT_USED		
+		else:
+			player.add_msg("You equip a shield.")
+			player.use_energy(150)
+			player.shield = self
+	
 		return ItemUseResult.USED
 		
-class Ammunition(Item):
-	description = "Ammunition for a ranged weapon."
-	def __init__(self):
+class Wand(Item):
+	description = "A magical wand that can be used to cast a spell at a creature."
+	
+	def __init__(self, spell):
 		super().__init__()
-		self.name = "ammo"
-		self.symbol = "i"
-		
-	def display_color(self):
-		return curses.color_pair(COLOR_CYAN)
-		
+		self.name = "wand"
+		self.symbol = "Î"
+		self.spell = spell
+	
 	def use(self, player):
-		player.add_msg("This ammunition is designed for use wirh ranged weapons.")
-		return ItemUseResult.NOT_USED
+		g = player.g
+		
+		spell = self.spell
+		max_range = spell.range
+		mon = g.select_monster_in_range(max_range, "Target which monster?")
+		if not mon:
+			return ItemUseResult.NOT_USED
+		
+		spell.cast(player, mon)
+		
+class WandFlame(Wand):
+	
+	def __init__(self):
+		super().__init__(FlameSpell())
+		self.name = "wand of flame"
+		
+class WandConfuse(Wand):
+	
+	def __init__(self):
+		super().__init__(ConfusionSpell())
+		self.name = "wand of confusion"

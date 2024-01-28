@@ -54,6 +54,16 @@
 		"apply_msg": "You suddenly feel like you can see what's just about to happen.",
 		"extend_msg": "You feel even more perceptive about the near future.",
 		"remove_msg": "You no longer feel as certain about what's about to happen."
+	},
+	{
+		"name": "Confused",
+		"type": "bad",
+		"apply_msg": "You are confused.",
+		"extend_msg": "You are even more confused.",
+		"remove_msg": "You are no longer confused.",
+		"mon_apply_msg": "<monster> is confused!",
+		"mon_extend_msg": "<monster> is even more confused!",
+		"mon_remove_msg": "<monster> is no longer confused."
 	}
 	
 ]

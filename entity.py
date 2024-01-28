@@ -202,7 +202,7 @@ class Entity(ABC):
 			return True
 		
 		return self.sees_pos(other.pos)
-			
+		
 	def has_clear_path(self, pos):
 		board = self.g.get_board()
 		return board.has_clear_path(self.pos, pos)		
@@ -342,6 +342,8 @@ class Entity(ABC):
 			penalty = calc_ranged_penalty(dist, proj.short_range, proj.long_range)
 			
 			if (c := g.entity_at(pos)):
+				if wild_miss and c is target_creature:
+					continue
 				ev = c.ranged_evasion()
 				
 				if target_creature and target_creature is c:
@@ -365,4 +367,8 @@ class Entity(ABC):
 					elif one_in(2) and c.is_monster():
 						if self.is_player():
 							c.alerted()
+							
+		if self.is_player():
+			self.maybe_alert_monsters(30)
+			
 		

@@ -104,7 +104,17 @@ def calc_ranged_penalty(r, short, long):
 		return 0.0
 	return 5 * (r - short) / (long - short)
 	
+def make_damage_msg(prefix, attacker, damage):
+	msg = prefix
+	if damage > 0 and attacker.is_player():
+		msg += f" for {damage} damage"
+	elif damage <= 0:
+		msg += " but does no damage"
+	msg += "."
+	return msg
 	
+	
+
 class WeightedList:
 	
 	def __init__(self):
