@@ -316,6 +316,9 @@ class NullWeapon(Weapon):
 	def roll_damage(self):
 		return 1 + one_in(3)
 		
+	def is_two_handed(self):
+		return False
+		
 UNARMED = NullWeapon()
 
 class Armor(Item):
@@ -388,6 +391,10 @@ class Wand(Item):
 		self.name = "wand"
 		self.symbol = "Î"
 		self.spell = spell
+		self.charges = triangular_roll(1, 7)
+		
+	def display_color(self):
+		return curses.color_pair(COLOR_MAGENTA)
 	
 	def use(self, player):
 		g = player.g
@@ -398,7 +405,19 @@ class Wand(Item):
 		if not mon:
 			return ItemUseResult.NOT_USED
 		
+		to_hit = spell.chance_to_hit(player, mon)
+		to_affect = spell.chance_to_affect(player, mon)
+		
+		if to_hit < 100.0:
+			player.add_msg(f"{to_hit:.1f}% to hit")
+		if to_affect < 100.0:
+			player.add_msg(f"{to_affect:.1f}% to affect")
 		spell.cast(player, mon)
+		self.charges -= 1
+		if self.charges <= 0:
+			return ItemUseResult.CONSUMED
+		else:
+			return ItemUseResult.USED
 		
 class WandFlame(Wand):
 	

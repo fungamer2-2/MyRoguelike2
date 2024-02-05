@@ -68,6 +68,9 @@ class Entity(ABC):
 	def remove_status(self, name):
 		if self.has_status(name):
 			del self.status[name]
+			
+	def is_immune_status(self, name):
+		return False
 		
 	def use_energy(self, amount):
 		self.energy -= amount
@@ -202,7 +205,7 @@ class Entity(ABC):
 			return True
 		
 		return self.sees_pos(other.pos)
-		
+			
 	def has_clear_path(self, pos):
 		board = self.g.get_board()
 		return board.has_clear_path(self.pos, pos)		
@@ -242,12 +245,17 @@ class Entity(ABC):
 			return
 		
 		dam = rng(1, strength) 
-		typ = "bad" if self.is_player() else "neutral"
 		
 		severity = " terribly" if res < 0 else ""
-		self.add_msg_u_or_mons(f"The acid burns you{severity}!", f"{self.get_name(True)} is burned{severity} by the acid!", typ)
+		self.combat_msg(f"The acid burns you{severity}!", f"{self.get_name(True)} is burned{severity} by the acid!")
 		self.take_damage(dam)
 			
+	def combat_msg(self, u_msg, mon_msg=None):
+		if mon_msg is None:
+			mon_msg = u_msg
+		typ = "bad" if self.is_player() else "neutral"
+		self.add_msg_u_or_mons(u_msg, mon_msg, typ)
+	
 	def dex_mod(self):
 		return stat_mod(self.DEX)
 		
@@ -274,6 +282,9 @@ class Entity(ABC):
 			self.status[name] -= amount
 			if self.status[name] <= 0:
 				self.remove_status(name)
+			
+	def apply_resist(self, dam, typ):
+		return dam
 				
 	def get_size(self):
 		return "medium"
@@ -342,8 +353,6 @@ class Entity(ABC):
 			penalty = calc_ranged_penalty(dist, proj.short_range, proj.long_range)
 			
 			if (c := g.entity_at(pos)):
-				if wild_miss and c is target_creature:
-					continue
 				ev = c.ranged_evasion()
 				
 				if target_creature and target_creature is c:
@@ -367,8 +376,4 @@ class Entity(ABC):
 					elif one_in(2) and c.is_monster():
 						if self.is_player():
 							c.alerted()
-							
-		if self.is_player():
-			self.maybe_alert_monsters(30)
-			
 		

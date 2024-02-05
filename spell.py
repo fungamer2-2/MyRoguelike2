@@ -45,6 +45,20 @@ class Spell:
 		save_roll = gauss_roll(stat_mod(stat))
 		return save_roll >= self.power
 		
+	def chance_to_hit(self, caster, target):
+		if (proj := self.get_projectile(stat_mod(caster.INT))):
+			return proj.to_hit_prob(caster, target)
+		elif self.att_save == "DEX":
+			return gauss_roll_prob(stat_mod(target.DEX), self.power)
+		else:
+			return 100.0
+			
+	def chance_to_affect(self, caster, target):
+		if self.att_save == "WIS":	
+			return gauss_roll_prob(stat_mod(target.WIS), self.power)
+		else:
+			return 100.0 	
+		
 	def do_spell_effect(self, attacker, pos):
 		g = self.g
 		ent = g.entity_at(pos)
@@ -52,23 +66,34 @@ class Spell:
 			self.on_hit(attacker, ent)
 			
 	def on_hit(self, caster, ent):
-		if self.saving_throw(ent):
+		if not self.can_affect(ent):
+			ent.add_msg_u_or_mons("You are unaffected.", f"{ent.get_name(True)} is unaffected.")
+		elif self.saving_throw(ent):
 			mon_msg = self.mon_resist_msg.replace("<monster>", ent.get_name())		
-			if mon_msg.startswith(ent.name):
+			if mon_msg.startswith(ent.get_name()):
 				mon_msg = mon_msg.capitalize()
 				
 			ent.add_msg_u_or_mons(self.u_resist_msg, mon_msg)
 		else:
 			self.do_effect(caster, ent)
 			
+	def can_affect(self, target):
+		return True
+		
+	def get_projectile(self, acc=0):
+		if self.att_save == "ranged":
+			return SpellProjectile(self, accuracy=acc, name=self.proj_name, max_range=self.range)
+		return None
+			
 	def cast(self, caster, target):
 		g = self.g
 		use_projectile = self.att_save == "ranged"
 		
-		if use_projectile:
-			caster.use_energy(100)
+		caster.use_energy(100)
+		
+		if use_projectile:		
 			acc = stat_mod(caster.INT)
-			proj = SpellProjectile(self, accuracy=acc, name=self.proj_name, max_range=self.range)
+			proj = self.get_projectile(acc)
 			caster.shoot_projectile_at(target.pos, proj)
 		else:
 			g.display_projectile_animation(caster.pos, target.pos)
@@ -90,7 +115,7 @@ class FlameSpell(Spell):
  		
 	def do_effect(self, caster, target):
 		damage = target.apply_armor(dice(1, 8))
-		msg = make_damage_msg(f"The flame hits {target.get_name()}", caster, damage)	
+		msg = make_damage_msg(f"The flame hits {target.get_name()}.", caster, damage)	
 		target.combat_msg(msg)
 		target.take_damage(damage, caster)
 		
@@ -102,10 +127,13 @@ class ConfusionSpell(Spell):
 			category=SpellCategory.HARMFUL,
 			spell_range=16,
 			att_save="WIS",
-			power=12,
+			power=11,
 			u_resist_msg="You resist the effect.",
 			mon_resist_msg="<monster> resists the effect."
 		)
+		
+	def can_affect(self, target):
+		return not target.is_immune_status("Confused")
  		
 	def do_effect(self, caster, target):
 		target.add_status("Confused", rng(10, 30))

@@ -281,6 +281,7 @@
 		"base_damage": "1d6",
 		"blindsight_range": 10,
 		"flags": [ "ACID_RESISTANT" ],
+		"immune_status": ["Confused"],
 		"attacks": [
 			{
 				"name": "Pseudopod",
@@ -393,6 +394,7 @@
 		"speed": 30,
 		"blindsight_range": 12,
 		"flags": [ "ACID_RESISTANT", "SPLITS" ],
+		"immune_status": ["Confused"],
 		"attacks": [
 			{
 				"name": "Pseudopod",
@@ -445,7 +447,7 @@
 		"INT": 2,
 		"WIS": 8,
 		"CHA": 6,
-		"HP": 78,
+		"HP": 75,
 		"level": 19,
 		"diff": 6,
 		"speed": 100,

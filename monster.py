@@ -338,7 +338,9 @@ class Monster(Entity):
 			return self.move_dir(0, dy) or (not switched and self.move_dir(dx, 0))
 	
 	def will_attack(self, c):
-		return c.is_player()
+		if c.is_player() and not self.is_aware():
+			return False
+		return self.has_status("Confused") or c.is_player()
 		
 	def can_reach_attack(self, target):
 		#Is attacking our target viable from our current position?
@@ -354,7 +356,7 @@ class Monster(Entity):
 		if self.move_to(pos):
 			return True
 		if self.distance(pos) <= 1 and (c := g.entity_at(pos)):
-			if self.attack_pos(c):
+			if self. self.attack_pos(c):
 				return True
 		return False
 	
@@ -468,9 +470,14 @@ class Monster(Entity):
 		
 		self.target_entity(player)
 				
-	def move_dir(self, dx, dy):
+	def move_dir(self, dx, dy):	
+		g = self.g
+		newpos = Point(self.x+dx, self.y+dy)
 		if super().move_dir(dx, dy):
 			self.use_move_energy()
+			return True
+		elif (c := g.entity_at(newpos)) and self.will_attack(c):
+			self.attack_pos(newpos)
 			return True
 		return False
 		
@@ -705,14 +712,17 @@ class Monster(Entity):
 				mon_msg = mon_msg.capitalize()	
 			
 			self.add_msg_if_u_see(self, mon_msg)
-						
+	
+	def is_immune_status(self, name):
+		return name in self.type.immune_status
+	
 	def random_guess_invis(self):
 		g = self.g
 		board = g.get_board()
 		chance = 1
 		target = None
 		for pos in board.points_in_radius(self.pos, 3):
-			if board.has_clear_path_to(self.pos, pos) and one_in(chance):
+			if self.has_clear_path_to(pos) and one_in(chance):
 				chance += 1
 				target = pos
 		if target:

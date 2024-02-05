@@ -308,7 +308,8 @@ class Game:
 			["scale_mail", 45],
 			["half_plate", 10],
 			["ring_mail", 27],
-			["chain_mail", 18]
+			["chain_mail", 18],
+			["plate", 10]
 		]
 		
 		for _ in range(rng(2, 4)):
@@ -328,6 +329,14 @@ class Game:
 				pos = board.random_passable()	
 				typ = random_weighted(scrolls)
 				board.place_item_at(pos, typ())
+				
+		if x_in_y(3, 8):
+			wand_types = [
+				WandFlame,
+				WandConfuse
+			]
+			pos = board.random_passable()
+			board.place_item_at(pos, random.choice(wand_types)())
 				
 		if one_in(5):
 			pos = board.random_passable()
@@ -423,9 +432,6 @@ class Game:
 		player.recalc_max_hp()
 		
 		board.player = player
-		
-		player.add_to_inventory(WandFlame())
-		player.add_to_inventory(WandConfuse())
 		
 	def place_player(self):
 		board = self.get_board()
@@ -1009,7 +1015,7 @@ class Game:
 		info = PopupInfo(self)
 		info.add_line(f"{monster.symbol} - {monster.name} ({monster.HP}/{monster.MAX_HP} HP)")
 		info.add_line()
-		stats_str = f"STR {monster.STR}, DEX {monster.DEX}, CON {monster.CON}"
+		stats_str = f"STR {monster.STR}, DEX {monster.DEX}, CON {monster.CON}, INT {monster.INT}, WIS {monster.WIS}"
 		info.add_line(stats_str)
 		info.add_line()
 		if monster.state == "IDLE":

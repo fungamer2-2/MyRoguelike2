@@ -177,6 +177,7 @@ class MonsterType(JSONObject):
 		
 		obj.load_optional(d, "use_dex_melee", False, bool)
 		obj.load_optional(d, "flags", [])
+		obj.load_optional(d, "immune_status", [])
 		obj.load_optional(d, "skills", {}, dict)
 		obj.load_optional(d, "reach", 1, int)
 		

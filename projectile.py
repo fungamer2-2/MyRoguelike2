@@ -61,3 +61,6 @@ class SpellProjectile(Projectile):
 		
 	def on_hit(self, attacker, defender, margin):
 		self.spell.do_spell_effect(attacker, defender.pos)
+		if defender.is_alive() and defender.is_monster(): 
+			if attacker.is_player():
+				defender.alerted()

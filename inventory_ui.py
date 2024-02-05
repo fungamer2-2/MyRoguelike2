@@ -11,6 +11,8 @@ def item_display_name(player, item):
 		name += " (wielded)"
 	elif item is player.shield:
 		name += " (equipped)"
+	elif isinstance(item, Wand):
+		name += f" (charges: {item.charges})"
 	return name
 
 def display_item(g, item):
@@ -37,7 +39,6 @@ def display_item(g, item):
 			menu.add_text("This weapon is heavy; attacking with it takes a bit longer.")
 		if item.is_two_handed():
 			menu.add_text("This weapon requires two hands to wield.")
-	
 		
 	use_text = "Use"
 	can_throw = False
