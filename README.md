@@ -2,8 +2,8 @@
 
 Game version: `0.16.0`<br />
 
-This is a terminal-based roguelike game in Python.
-It entirely uses the CLI interface.
+This is a terminal-based roguelike game in Python. It entirely uses the CLI interface.<br />
+This game does not require any external dependencies besides the Python `curses` module. If you are on Windows, you may need to install the `windows-curses` module.
 
 The game controls can be found in-game.
 
